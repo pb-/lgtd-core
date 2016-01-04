@@ -55,6 +55,22 @@ def parse_push_input(data):
     return data
 
 
+def is_gapless(local_revs, commands):
+    revs = dict(local_revs)
+    cmds = sorted(commands)
+
+    for app_id, rev, _, _, _ in cmds:
+        if app_id not in revs:
+            revs[app_id] = 0
+
+        if rev > revs[app_id]:
+            if rev != revs[app_id] + 1:
+                return False
+            revs[app_id] = rev
+
+    return True
+
+
 def authenticate(cursor, auth_header):
     if auth_header is None or not auth_header.startswith('Basic '):
         raise AuthenticationError
@@ -158,8 +174,12 @@ class PushHandler(BaseHandler):
     def process(self, cursor, user_id):
         try:
             data = parse_push_input(self.request.body)
-            insert_commands(cursor, user_id, data['cmds'])
-            self.write({})
+            local_revs = get_local_revs(cursor, user_id)
+            if not is_gapless(local_revs, data['cmds']):
+                self.send_error(400)
+            else:
+                insert_commands(cursor, user_id, data['cmds'])
+                self.write({})
         except ValueError:
             self.send_error(400)
 
