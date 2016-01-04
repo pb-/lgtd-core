@@ -71,20 +71,18 @@ def is_gapless(local_revs, commands):
     return True
 
 
-def authenticate(cursor, auth_header):
-    if auth_header is None or not auth_header.startswith('Basic '):
+def authenticate(cursor, auth_token):
+    if auth_token is None:
         raise AuthenticationError
 
-    decoded = decodestring(auth_header[6:])  # data past 'Basic '
-    user, password = decoded.split(':', 2)
     cursor.execute('''
         SELECT
             id
         FROM
             users
         WHERE
-            name = ? AND password = ?
-    ''', (user, password))
+            token = ?
+    ''', (auth_token, ))
     row = cursor.fetchone()
 
     if row is None:
@@ -148,7 +146,7 @@ class BaseHandler(web.RequestHandler):
 
         try:
             user_id = authenticate(
-                cursor, self.request.headers.get('Authorization'))
+                cursor, self.request.headers.get('X-GTD-Token'))
             self.process(cursor, user_id)
         except AuthenticationError:
             self.send_error(401)

@@ -1,9 +1,8 @@
 CREATE TABLE users (
 	id INTEGER NOT NULL,
-	name TEXT NOT NULL,
-	password TEXT NOT NULL,
+	token TEXT NOT NULL,
 	PRIMARY KEY (id),
-	UNIQUE (name COLLATE NOCASE)
+	UNIQUE (token)
 );
 
 CREATE TABLE commands (
