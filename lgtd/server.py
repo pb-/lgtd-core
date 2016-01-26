@@ -1,194 +1,183 @@
+import os
 import re
-import sqlite3
-
-from base64 import decodestring
+from collections import defaultdict
 from json import loads
+
 from tornado import ioloop, web
 
-
 IS_VALID_APP_ID = re.compile('^[a-zA-Z0-9]{2}$').match
+IS_VALID_TOKEN = re.compile('^[a-zA-Z0-9]{10}$').match
 
 
 class AuthenticationError(Exception):
     pass
 
 
-def parse_pull_input(data):
-    data = loads(data)
-
-    if 'revs' not in data:
+def validate_type(datum, type_):
+    if not isinstance(datum, type_):
         raise ValueError
 
-    for app_id in data['revs']:
-        if not IS_VALID_APP_ID(app_id):
-            raise ValueError
-        if not isinstance(data['revs'][app_id], int):
-            raise ValueError
-        if data['revs'][app_id] < 1:
-            raise ValueError
 
-    return data
-
-
-def parse_push_input(data):
-    data = loads(data)
-
-    if 'cmds' not in data:
+def validate_in(item, collection):
+    if item not in collection:
         raise ValueError
-    if not isinstance(data['cmds'], list):
+
+
+def validate_app_id(app_id):
+    validate_type(app_id, basestring)
+    if not IS_VALID_APP_ID(app_id):
         raise ValueError
-    for cmd in data['cmds']:
-        if not isinstance(cmd, list):
-            raise ValueError
-        if not len(cmd) == 5:
-            raise ValueError
-        for i in (0, 2, 3, 4):
-            if not isinstance(cmd[i], basestring):
-                raise ValueError
-        if not isinstance(cmd[1], int):
-            raise ValueError
-        if cmd[1] < 1:
-            raise ValueError
-        if not IS_VALID_APP_ID(cmd[0]):
-            raise ValueError
-
-    return data
 
 
-def is_gapless(local_revs, commands):
-    revs = dict(local_revs)
-    cmds = sorted(commands)
+def validate_positive_int(datum):
+    validate_type(datum, int)
+    if datum < 0:
+        raise ValueError
 
-    for app_id, rev, _, _, _ in cmds:
-        if app_id not in revs:
-            revs[app_id] = 0
 
-        if rev > revs[app_id]:
-            if rev != revs[app_id] + 1:
-                return False
-            revs[app_id] = rev
+def parse_pull_input(encoded):
+    json = loads(encoded)
+
+    validate_in('offs', json)
+    validate_type(json['offs'], dict)
+
+    for app_id in json['offs']:
+        validate_app_id(app_id)
+        validate_positive_int(json['offs'][app_id])
+
+    return json
+
+
+def parse_push_input(encoded):
+    json = loads(encoded)
+
+    validate_in('data', json)
+    validate_type(json['data'], dict)
+
+    for app_id in json['data']:
+        validate_app_id(app_id)
+        validate_type(json['data'][app_id], list)
+        if not len(json['data'][app_id]) == 2:
+            raise ValueError
+
+        validate_positive_int(json['data'][app_id][0])
+        validate_type(json['data'][app_id][1], basestring)
+        if not len(json['data'][app_id][1]):
+            raise ValueError
+
+    return json
+
+
+def is_gapless(local_offs, remote_data):
+    for app_id, (remote_off, _) in remote_data.iteritems():
+        if remote_off > local_offs[app_id]:
+            return False
 
     return True
 
 
-def authenticate(cursor, auth_token):
-    if auth_token is None:
+def authenticate(auth_token):
+    if not (IS_VALID_TOKEN(auth_token) and
+            os.path.isdir(os.path.join('data', auth_token))):
         raise AuthenticationError
 
-    cursor.execute('''
-        SELECT
-            id
-        FROM
-            users
-        WHERE
-            token = ?
-    ''', (auth_token, ))
-    row = cursor.fetchone()
 
-    if row is None:
-        raise AuthenticationError
+def get_local_offs(auth_token):
+    data_dir = os.path.join('data', auth_token)
+    app_ids = os.listdir(data_dir)
+    sizes = map(
+        lambda app_id: (
+            app_id, os.path.getsize(os.path.join(data_dir, app_id))
+        ), app_ids)
 
-    return row['id']
+    return defaultdict(int, sizes)
 
 
-def get_local_revs(cursor, user_id):
-    cursor.execute('''
-        SELECT
-            app_id, MAX(rev) AS rev
-        FROM
-            commands
-        WHERE
-            user_id = ?
-        GROUP BY
-            app_id
-    ''', (user_id, ))
-
-    return {row['app_id']: row['rev'] for row in cursor}
+def get_data(auth_token, app_id, offset):
+    with open(os.path.join('data', auth_token, app_id), 'rb') as f:
+        if offset > 0:
+            f.seek(offset)
+        return f.read()
 
 
-def get_missing_cmds(cursor, user_id, remote_revs):
-    params = [user_id]
-    for app_id, rev in remote_revs.items():
-        params += [app_id, rev]
+def put_data(auth_token, app_id, offset, data):
+    path = os.path.join('data', auth_token, app_id)
 
-    rev_filter = ' AND NOT (app_id = ? AND rev <= ?)' * len(remote_revs)
-    cursor.execute('''
-        SELECT
-            app_id, rev, iv, mac, cmd
-        FROM
-            commands
-        WHERE
-            user_id = ? {}
-    '''.format(rev_filter), params)
+    # make sure file exists in a non-invasive way
+    with open(path, 'a') as f:
+        pass
 
-    return map(list, cursor.fetchall())
+    with open(path, 'rb+') as f:
+        f.seek(offset)
+        f.write(data)
 
 
-def insert_commands(cursor, user_id, commands):
-    inserts = map(lambda l: [user_id] + l, commands)
-    cursor.executemany('''
-        INSERT OR IGNORE INTO
-            commands
-        VALUES
-            (?, ?, ?, ?, ?, ?)
-    ''', inserts)
+def get_missing_data(auth_token, local_offs, remote_offs):
+    data = {}
+
+    for app_id, local_off in local_offs.iteritems():
+        remote_off = remote_offs[app_id]
+        if local_off > remote_off:
+            missing_data = get_data(auth_token, app_id, remote_off)
+            data[app_id] = [remote_off, missing_data]
+
+    return data
+
+
+def insert_data(auth_token, local_offs, remote_data):
+    for app_id, (remote_off, data) in remote_data.iteritems():
+        local_off = local_offs[app_id]
+        overlap = local_off - remote_off
+        put_data(auth_token, app_id, local_off, data[overlap:])
 
 
 class BaseHandler(web.RequestHandler):
-    def initialize(self, db):
-        self.db = db
-
-    def process(self, cursor, user_id):
+    def process(self):
         raise NotImplemented
 
-    def post(self):
-        cursor = self.db.cursor()
-
+    def post(self, auth_token):
         try:
-            user_id = authenticate(
-                cursor, self.request.headers.get('X-GTD-Token'))
-            self.process(cursor, user_id)
+            authenticate(auth_token)
+            self.auth_token = auth_token
+            self.process()
         except AuthenticationError:
             self.send_error(401)
 
-        cursor.close()
-        self.db.commit()
-
 
 class PullHandler(BaseHandler):
-    def process(self, cursor, user_id):
-        local_revs = get_local_revs(cursor, user_id)
+    def process(self):
+        local_offs = get_local_offs(self.auth_token)
         try:
             remote = parse_pull_input(self.request.body)
+            remote_offs = defaultdict(int, remote['offs'])
+
             self.write({
-                'revs': local_revs,
-                'cmds': get_missing_cmds(cursor, user_id, remote['revs']),
+                'offs': local_offs,
+                'data': get_missing_data(
+                    self.auth_token, local_offs, remote_offs),
             })
         except ValueError:
             self.send_error(400)
 
 
 class PushHandler(BaseHandler):
-    def process(self, cursor, user_id):
+    def process(self):
         try:
-            data = parse_push_input(self.request.body)
-            local_revs = get_local_revs(cursor, user_id)
-            if not is_gapless(local_revs, data['cmds']):
+            remote = parse_push_input(self.request.body)
+            local_offs = get_local_offs(self.auth_token)
+            if not is_gapless(local_offs, remote['data']):
                 self.send_error(400)
             else:
-                insert_commands(cursor, user_id, data['cmds'])
+                insert_data(self.auth_token, local_offs, remote['data'])
                 self.write({})
         except ValueError:
             self.send_error(400)
 
 
 def make_app():
-    db = sqlite3.connect('data.db')
-    db.row_factory = sqlite3.Row
-
     return web.Application([
-        (r"/pull", PullHandler, {'db': db}),
-        (r"/push", PushHandler, {'db': db}),
+        (r'/gtd/([0-9a-zA-Z]{10})/pull', PullHandler),
+        (r'/gtd/([0-9a-zA-Z]{10})/push', PushHandler),
     ])
 
 
