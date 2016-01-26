@@ -11,7 +11,7 @@ setup(
     packages=['lgtd'],
     entry_points={
         'console_scripts': [
-            'lgtd_server = lgtd.server:run',
+            'lgtd_syncd = lgtd.sync.server:run',
         ],
     },
 )
