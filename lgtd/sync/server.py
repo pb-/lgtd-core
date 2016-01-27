@@ -95,19 +95,15 @@ def get_local_offs(auth_token):
 
 def get_data(auth_token, app_id, offset):
     with open(os.path.join('data', auth_token, app_id), 'rb') as f:
-        if offset > 0:
-            f.seek(offset)
+        f.seek(offset)
         return f.read()
 
 
 def put_data(auth_token, app_id, offset, data):
     path = os.path.join('data', auth_token, app_id)
+    mode = 'rb+' if offset else 'ab'
 
-    # make sure file exists in a non-invasive way
-    with open(path, 'a') as f:
-        pass
-
-    with open(path, 'rb+') as f:
+    with open(path, mode) as f:
         f.seek(offset)
         f.write(data)
 
