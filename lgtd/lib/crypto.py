@@ -2,10 +2,20 @@ import os
 from base64 import b64decode, b64encode
 from calendar import timegm
 from datetime import datetime
+from hashlib import sha256
 from struct import pack, unpack
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+
+def hash_password(password):
+    salt = '\xf8\x99\x8a\x8c\x2a\x3a\x94\x08\x61\x83\x0a\x4d\xab\x62\xfe\x46'
+    h = sha256()
+    h.update(salt)
+    h.update(password)
+
+    return h.digest
 
 
 class CommandCipher(object):

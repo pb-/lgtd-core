@@ -1,21 +1,29 @@
 from collections import OrderedDict, defaultdict
 from datetime import date
+from getpass import getpass
 from json import dumps, loads
 
 import pyinotify
 from tornado import ioloop, web
 from tornado.websocket import WebSocketHandler
 
-from .lib.util import ensure_lock_file, get_lock_file
+from .lib.commands import Command
+from .lib.crypto import CommandCipher, hash_password
+from .lib.db import ClientDatabase
+from .lib.util import (ensure_data_dir, ensure_lock_file, get_data_dir,
+                       get_lock_file)
 
 
 class StateManager(object):
-    def __init__(self):
+    def __init__(self, app_id, db, cipher):
         self.state = {
             'tag_order': ['inbox', 'todo', 'someday', 'tickler', 'ref'],
             'items': OrderedDict(),
         }
         self.offsets = defaultdict(int)
+        self.app_id = app_id
+        self.cipher = cipher
+        self.db = db
 
     @staticmethod
     def _display_tag(tag, ref_date):
@@ -32,7 +40,20 @@ class StateManager(object):
         """
         Returns true if there are changes
         """
-        return True
+        with self.db.lock(True):
+            offsets = self.db.get_offsets()
+            if offsets == self.offsets:
+                return False
+
+            for line, app_id, offset in self.db.read_all(self.offsets):
+                cmd = Command.parse(self.cipher.decrypt(line, app_id, offset))
+                cmd.apply(self.state)
+
+            self.offsets = offsets
+            return True
+
+    def push_commands(self, commands):
+        pass
 
     def render_state(self, active_tag):
         today = str(date.today())
@@ -98,9 +119,13 @@ def callback(notifier):
 
 def run():
     clients = []
-    state_manager = StateManager()
+    key = hash_password(getpass())
+    state_manager = StateManager(
+        'XX',
+        ClientDatabase(get_data_dir(), get_lock_file()), CommandCipher(key))
 
     ensure_lock_file()
+    ensure_data_dir()
     wm = pyinotify.WatchManager()
     notifier = pyinotify.TornadoAsyncNotifier(
         wm, ioloop.IOLoop.current(), callback, pyinotify.ProcessEvent())

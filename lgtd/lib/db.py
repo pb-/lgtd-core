@@ -12,8 +12,9 @@ class BaseDatabase(object):
         self.lock_path = lock_path
 
     @contextmanager
-    def lock(self):
-        with open(self.lock_path, 'a') as f:
+    def lock(self, read_only=False):
+        mode = 'r' if read_only else 'a'
+        with open(self.lock_path, mode) as f:
             flock(f, LOCK_EX)
             yield
             flock(f, LOCK_UN)
@@ -99,14 +100,14 @@ class ClientDatabase(BaseDatabase):
             f.seek(start_offs[app_id])
             line = self._read_line(f)
             if line:
-                lines.append(line)
+                lines.append(line + (app_id, offset))
 
         while lines:
             lines.sort()
-            (_, line, f) = lines[0]
-            yield line
+            (_, line, f, app_id, offset) = lines[0]
+            yield line, app_id, offset
             del lines[0]
 
             line = self._read_line(f)
             if line:
-                lines.insert(0, line)
+                lines.insert(0, line + (app_id, offset))

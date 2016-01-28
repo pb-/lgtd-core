@@ -24,6 +24,10 @@ def ensure_dir(path):
             raise
 
 
+def ensure_data_dir():
+    ensure_dir(get_data_dir())
+
+
 def ensure_lock_file():
     path = get_lock_file()
     if os.path.isfile(path):
