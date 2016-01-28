@@ -12,7 +12,7 @@ class DaemonTestCase(unittest.TestCase):
     def test_state_mgr_render(self, mock_date):
         setattr(mock_date, 'today', lambda: date(2015, 12, 3))
 
-        sm = StateManager()
+        sm = StateManager(None, None, None)
         sm.state = {
             'tag_order': ['inbox', 'tickler', 'one', 'empty'],
             'items': OrderedDict([
