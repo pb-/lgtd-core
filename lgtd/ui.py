@@ -1,13 +1,15 @@
-import os
-import re
-import random
 import curses
 import logging
+import os
+import random
+import re
 import sys
-from json import dumps, loads
 from datetime import date, timedelta
-from select import select, error as select_error
+from json import dumps, loads
+from select import error as select_error
+from select import select
 from threading import Thread
+
 from websocket import WebSocketApp
 
 ITEM_ID_LEN = 3

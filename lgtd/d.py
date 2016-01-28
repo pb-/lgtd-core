@@ -1,7 +1,8 @@
-import pyinotify
-from json import loads, dumps
-from datetime import date
 from collections import OrderedDict, defaultdict
+from datetime import date
+from json import dumps, loads
+
+import pyinotify
 from tornado import ioloop, web
 from tornado.websocket import WebSocketHandler
 

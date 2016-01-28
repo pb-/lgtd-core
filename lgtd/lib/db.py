@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
-from fcntl import flock, LOCK_EX, LOCK_UN
 from contextlib import contextmanager
+from fcntl import LOCK_EX, LOCK_UN, flock
 
 from .crypto import CommandCipher
 

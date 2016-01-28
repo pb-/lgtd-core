@@ -1,9 +1,9 @@
-from collections import OrderedDict
 import unittest
+from collections import OrderedDict
 
-from ..commands import (
-    Command, ItemTitleCommand, DeleteItemCommand, UnsetTagCommand,
-    SetTagCommand, OrderTagCommand, DeleteTagCommand)
+from ..commands import (Command, DeleteItemCommand, DeleteTagCommand,
+                        ItemTitleCommand, OrderTagCommand, SetTagCommand,
+                        UnsetTagCommand)
 
 
 class CommandsTestCase(unittest.TestCase):

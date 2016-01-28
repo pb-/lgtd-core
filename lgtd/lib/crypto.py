@@ -1,9 +1,8 @@
-from struct import pack, unpack
-
-from datetime import datetime
-from calendar import timegm
-from base64 import b64encode, b64decode
 import os
+from base64 import b64decode, b64encode
+from calendar import timegm
+from datetime import datetime
+from struct import pack, unpack
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
