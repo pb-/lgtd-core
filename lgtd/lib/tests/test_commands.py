@@ -40,10 +40,10 @@ class CommandsTestCase(unittest.TestCase):
     def get_state():
         return {
             'tag_order': ['t1', 't2', 't3'],
-            'items': OrderedDict({
-                'i00': {'title': 'the first item', 'tag': 't1'},
-                'i01': {'title': 'the second item', 'tag': 't1'},
-            }),
+            'items': OrderedDict([
+                ('i00', {'title': 'the first item', 'tag': 't1'}),
+                ('i01', {'title': 'the second item', 'tag': 't1'}),
+            ]),
         }
 
     def test_item_title_command(self):

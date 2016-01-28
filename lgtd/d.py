@@ -1,5 +1,6 @@
 import pyinotify
 from json import loads, dumps
+from datetime import date
 from collections import OrderedDict, defaultdict
 from tornado import ioloop, web
 from tornado.websocket import WebSocketHandler
@@ -16,8 +17,15 @@ class StateManager(object):
         self.offsets = defaultdict(int)
 
     @staticmethod
-    def _display_tag(tag, for_date):
-        pass
+    def _display_tag(tag, ref_date):
+        if not tag:
+            return 'inbox'
+
+        if tag.startswith('$'):
+            tag_date = tag[1:]
+            return 'tickler' if tag_date > ref_date else 'inbox'
+
+        return tag
 
     def notify(self):
         """
@@ -26,23 +34,33 @@ class StateManager(object):
         return True
 
     def render_state(self, active_tag):
-        mock_model = {
-            'tags': [
-                {'name': 'inbox', 'count': 3},
-                {'name': 'todo', 'count': 0},
-                {'name': 'someday', 'count': 4},
-                {'name': 'tickler', 'count': 0},
-                {'name': 'ref', 'count': 19},
-            ],
-            'active_tag': 0,
-            'items': [
-                {'id': 'ab0', 'title': 'some stuff'},
-                {'id': 'ab1', 'title': 'old stuff', 'scheduled': '2015-12-04'},
-                {'id': 'ab2', 'title': 'really important things'},
-            ]
-        }
+        today = str(date.today())
+        counts = defaultdict(int)
+        items = []
 
-        return mock_model
+        for item_id, item in self.state['items'].iteritems():
+            actual_tag = self._display_tag(item['tag'], today)
+            counts[actual_tag] += 1
+            if actual_tag == active_tag:
+                data = {
+                    'id': item_id,
+                    'title': item['title'],
+                }
+                if item['tag'].startswith('$'):
+                    data['scheduled'] = item['tag'][1:]
+
+                items.append(data)
+
+        tags = map(
+            lambda tag: {'name': tag, 'count': counts[tag]},
+            self.state['tag_order']
+        )
+
+        return {
+            'tags': tags,
+            'active_tag': self.state['tag_order'].index(active_tag),
+            'items': items,
+        }
 
 
 class GTDSocketHandler(WebSocketHandler):
