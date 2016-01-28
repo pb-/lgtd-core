@@ -28,6 +28,16 @@ class Command(object):
             lambda arg: getattr(self, arg), self.args
         ))
 
+    def __eq__(self, other):
+        if self.mnemonic != other.mnemonic:
+            return False
+
+        for arg in self.args:
+            if getattr(self, arg) != getattr(other, arg):
+                return False
+
+        return True
+
     @staticmethod
     def parse(string):
         mnemonic = string[0]
@@ -105,3 +115,19 @@ class OrderTagCommand(Command):
 
         order.remove(self.second)
         order.insert(order.index(self.first) + 1, self.second)
+
+
+@CommandRegistry.register
+class DeleteTagCommand(Command):
+    mnemonic = 'r'
+    args = ['tag']
+
+    def apply(self, state):
+        if self.tag not in state['tag_order']:
+            return
+
+        for item in state['items'].values():
+            if item['tag'] == self.tag:
+                return  # don't remove non-empty tags
+
+        state['tag_order'].remove(self.tag)

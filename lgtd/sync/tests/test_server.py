@@ -2,7 +2,7 @@ import unittest
 from collections import defaultdict
 from json import dumps
 
-from ..server import is_gapless, parse_pull_input, parse_push_input
+from ..server import parse_pull_input, parse_push_input
 
 
 class ServerTestCase(unittest.TestCase):
@@ -88,29 +88,3 @@ class ServerTestCase(unittest.TestCase):
         for bad in bads:
             with self.assertRaises(ValueError):
                 parse_push_input(dumps(bad))
-
-    def test_gapless(self):
-        local_offs = defaultdict(int, {
-            'ab': 139,
-            'Qi': 89,
-        })
-        remote_data = defaultdict(int, {
-            '9p': [0, 'foo'],
-            'ab': [139, 'foo'],
-            'Qi': [80, 'foo'],
-        })
-        self.assertTrue(is_gapless(local_offs, remote_data))
-
-        remote_data = defaultdict(int, {
-            '9p': [1, 'foo'],
-            'ab': [139, 'foo'],
-            'Qi': [80, 'foo'],
-        })
-        self.assertFalse(is_gapless(local_offs, remote_data))
-
-        remote_data = defaultdict(int, {
-            '9p': [0, 'foo'],
-            'ab': [139, 'foo'],
-            'Qi': [4880, 'foo'],
-        })
-        self.assertFalse(is_gapless(local_offs, remote_data))

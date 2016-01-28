@@ -1,15 +1,14 @@
 import os
 import re
-import errno
 import random
 import curses
 import logging
 import sys
 from json import dumps, loads
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from select import select, error as select_error
 from threading import Thread
-from websocket import WebSocketApp, WebSocketTimeoutException
+from websocket import WebSocketApp
 
 ITEM_ID_LEN = 3
 IM_ADD = 0
@@ -19,23 +18,6 @@ IM_PROC = 2
 
 class ParseError(Exception):
     pass
-
-
-mock_model = {
-    'tags': [
-        {'name': 'inbox', 'count': 3},
-        {'name': 'todo', 'count': 0},
-        {'name': 'someday', 'count': 4},
-        {'name': 'tickler', 'count': 0},
-        {'name': 'ref', 'count': 19},
-    ],
-    'active_tag': 0,
-    'items': [
-        {'id': 'ab0', 'title': 'some stuff'},
-        {'id': 'ab1', 'title': 'other due stuff', 'scheduled': '2015-12-04'},
-        {'id': 'ab2', 'title': 'really important things'},
-    ]
-}
 
 
 def parse_nat_date(s):
@@ -208,7 +190,7 @@ def process_item_raw(model_state, item, query):
         return eval_local_command(model_state, tc)
 
 
-def handle_input(ch, model_state, ui_state):
+def handle_input(ch, state_mgr, model_state, ui_state):
     if ui_state['input_mode'] is not None:
         if 32 <= ch < 256:
             before = ui_state['input_buffer'][:ui_state['input_cursor_pos']]
@@ -226,7 +208,7 @@ def handle_input(ch, model_state, ui_state):
             im = ui_state['input_mode']
             ui_state['input_mode'] = None
             if ch == 27 or not ui_state['input_buffer']:
-                return (True, model_state)
+                return True
 
             if im == IM_ADD:
                 tc = TitleCommand(gen_id(ITEM_ID_LEN),
@@ -242,18 +224,20 @@ def handle_input(ch, model_state, ui_state):
                 model_state = process_item_raw(
                     model_state, item, ui_state['input_buffer'])
 
-        return (True, model_state)
+        return True
     else:
         if ch == ord('l') or ch == ord('K'):
             active = max(0, ui_state['active_tag']-1)
             if ui_state['active_tag'] != active:
                 ui_state['active_item'] = 0
                 ui_state['active_tag'] = active
+                state_mgr.request_state(model_state['tags'][active]['name'])
         elif ch == ord('h') or ch == ord('J'):
             active = min(len(model_state)-1, ui_state['active_tag']+1)
             if ui_state['active_tag'] != active:
                 ui_state['active_item'] = 0
                 ui_state['active_tag'] = active
+                state_mgr.request_state(model_state['tags'][active]['name'])
         elif ch == ord('k'):
             ui_state['active_item'] = max(0, ui_state['active_item']-1)
         elif ch == ord('j'):
@@ -295,13 +279,13 @@ def handle_input(ch, model_state, ui_state):
                 ui_state['active_tag'] = num
                 ui_state['active_item'] = 0
         else:
-            return (False, model_state)
+            return False
 
         # scroll to make active item visible
         update_scroll(ui_state, 'scroll_offset_items', 'active_item')
         update_scroll(ui_state, 'scroll_offset_tags', 'active_tag')
 
-        return (True, model_state)
+        return True
 
 
 class StateManagerThread(Thread):
@@ -344,9 +328,8 @@ class StateManagerThread(Thread):
         self._send(message)
 
     def run(self):
-        #self.socket = create_connection('ws://127.0.0.1:3500/gtd')
         self.socket = WebSocketApp(
-            'ws://echo.websocket.org/',
+            'ws://127.0.0.1:9001/gtd',
             on_open=self._on_open,
             on_message=self._on_message)
 
@@ -365,10 +348,12 @@ def main(scr):
     state_mgr = StateManagerThread()
     state_mgr.start()
 
-    model_state = mock_model
+    model_state = {
+        'tags': [{'name': 'inbox', 'count': 0}],
+        'items': [],
+    }
 
     while True:
-        #validate_indexes(model_state, ui_state)
         render(scr, model_state, ui_state)
 
         try:
@@ -379,7 +364,7 @@ def main(scr):
             selected = []
         if sys.stdin in selected:
             key = scr.getch()
-            consumed, model_state = handle_input(key, model_state, ui_state)
+            consumed = handle_input(key, state_mgr, model_state, ui_state)
             if not consumed:
                 if key == ord('q'):
                     break
@@ -390,7 +375,11 @@ def main(scr):
                 state_mgr.request_state(
                     model_state['tags'][ui_state['active_tag']]['name'])
             elif data['msg'] == 'state':
-                pass
+                model_state = {
+                    'tags': data['state']['tags'],
+                    'items': data['state']['items'],
+                }
+                ui_state['active_tag'] = data['state']['active_tag']
 
     # tear down websocket connection and wait for thread to end
     state_mgr.stop()
