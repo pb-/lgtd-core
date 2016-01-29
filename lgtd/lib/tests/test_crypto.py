@@ -6,6 +6,11 @@ from cryptography.exceptions import InvalidTag
 from ..crypto import CommandCipher
 
 
+def maul_ciphertext(ciphertext, position):
+    replacement = 'y' if ciphertext[position] == 'x' else 'x'
+    return ciphertext[:position] + replacement + ciphertext[position + 1:]
+
+
 class CipherTestCase(unittest.TestCase):
     def test_generate_iv(self):
         for _ in xrange(100):
@@ -57,12 +62,12 @@ class CipherTestCase(unittest.TestCase):
             bad_cipher.decrypt(ciphertext, client_id, offset)
 
         # test malformed data (iv, tag, and ciphertext)
-        bad_ciphertext = ciphertext[:4] + 'x' + ciphertext[5:]
+        bad_ciphertext = maul_ciphertext(ciphertext, 4)
         with self.assertRaises(InvalidTag):
             real_cipher.decrypt(bad_ciphertext, client_id, offset)
-        bad_ciphertext = ciphertext[:14] + 'x' + ciphertext[15:]
+        bad_ciphertext = maul_ciphertext(ciphertext, 14)
         with self.assertRaises(InvalidTag):
             real_cipher.decrypt(bad_ciphertext, client_id, offset)
-        bad_ciphertext = ciphertext[:44] + 'x' + ciphertext[45:]
+        bad_ciphertext = maul_ciphertext(ciphertext, 44)
         with self.assertRaises(InvalidTag):
             real_cipher.decrypt(bad_ciphertext, client_id, offset)
