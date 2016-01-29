@@ -235,7 +235,7 @@ def handle_input(ch, state_mgr, model_state, ui_state):
                 ui_state['active_tag'] = active
                 state_mgr.request_state(model_state['tags'][active]['name'])
         elif ch == ord('h') or ch == ord('J'):
-            active = min(len(model_state)-1, ui_state['active_tag']+1)
+            active = min(len(model_state['tags'])-1, ui_state['active_tag']+1)
             if ui_state['active_tag'] != active:
                 ui_state['active_item'] = 0
                 ui_state['active_tag'] = active

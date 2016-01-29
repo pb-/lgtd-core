@@ -1,5 +1,10 @@
 import errno
+import json
 import os
+import random
+from stat import S_IRUSR, S_IWUSR
+
+from .constants import APP_ID_LEN, LOCAL_AUTH_LEN
 
 
 def get_lgtd_dir():
@@ -36,3 +41,43 @@ def ensure_lock_file():
     ensure_dir(get_lgtd_dir())
     with open(path, 'a'):
         pass
+
+
+def random_string(length):
+    alpha = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    return ''.join((random.choice(alpha) for _ in xrange(length)))
+
+
+def get_config(conf_file, default_content_handler, create_new=False):
+    path = os.path.join(get_lgtd_dir(), conf_file)
+
+    if create_new:
+        with open(path, 'w') as f:
+            json.dump(default_content_handler(), f, indent=2, sort_keys=True)
+            f.write('\n')
+        os.chmod(path, S_IRUSR | S_IWUSR)
+
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except IOError:
+        if create_new:
+            raise
+        else:
+            # retry with creating a new file
+            return get_config(conf_file, default_content_handler, True)
+
+
+def get_local_config():
+    return get_config('local.conf.json', lambda: {
+        'app_id': random_string(APP_ID_LEN),
+        'local_auth': random_string(LOCAL_AUTH_LEN),
+    })
+
+
+def get_sync_config():
+    return get_config('sync.conf.json', lambda: {
+        'host': '',
+        'port': 9002,
+        'sync_auth': '',
+    })

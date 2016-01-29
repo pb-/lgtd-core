@@ -11,7 +11,7 @@ from .lib.commands import Command
 from .lib.crypto import CommandCipher, hash_password
 from .lib.db import ClientDatabase
 from .lib.util import (ensure_data_dir, ensure_lock_file, get_data_dir,
-                       get_lock_file)
+                       get_local_config, get_lock_file)
 
 
 class StateManager(object):
@@ -55,7 +55,8 @@ class StateManager(object):
     def push_commands(self, commands):
         with self.db.lock(), self.db.append(self.app_id) as f:
             for command in commands:
-                line = self.cipher.encrypt(command.encode('utf-8'), self.app_id, f.tell())
+                line = self.cipher.encrypt(
+                    command.encode('utf-8'), self.app_id, f.tell())
                 f.write(line)
 
     def render_state(self, active_tag):
@@ -126,8 +127,9 @@ def callback(notifier):
 def run():
     clients = []
     key = hash_password(getpass())
+    config = get_local_config()
     state_manager = StateManager(
-        'XX',
+        config['app_id'],
         ClientDatabase(get_data_dir(), get_lock_file()), CommandCipher(key))
 
     ensure_lock_file()

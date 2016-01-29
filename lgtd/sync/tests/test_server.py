@@ -1,5 +1,4 @@
 import unittest
-from collections import defaultdict
 from json import dumps
 
 from ..server import parse_pull_input, parse_push_input
