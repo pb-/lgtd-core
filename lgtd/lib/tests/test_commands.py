@@ -71,6 +71,15 @@ class CommandsTestCase(unittest.TestCase):
 
         SetTagCommand('i00', 't2').apply(state)
         self.assertEqual(state['items']['i00']['tag'], 't2')
+        self.assertEqual(state['tag_order'], ['t1', 't2', 't3'])
+
+        SetTagCommand('i00', '$2016-01-01').apply(state)
+        self.assertEqual(state['items']['i00']['tag'], '$2016-01-01')
+        self.assertEqual(state['tag_order'], ['t1', 't2', 't3'])
+
+        SetTagCommand('i01', 'new').apply(state)
+        self.assertEqual(state['tag_order'][-1], 'new')
+        self.assertEqual(state['items']['i01']['tag'], 'new')
 
     def test_unset_tag_command(self):
         state = self.get_state()

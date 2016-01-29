@@ -89,6 +89,10 @@ class SetTagCommand(Command):
             state['items'][self.item_id]['tag'] = self.tag
         except KeyError:
             pass
+        else:
+            if (self.tag not in state['tag_order'] and
+                    not self.tag.startswith('$')):
+                state['tag_order'].append(self.tag)
 
 
 @CommandRegistry.register
@@ -124,6 +128,8 @@ class DeleteTagCommand(Command):
 
     def apply(self, state):
         if self.tag not in state['tag_order']:
+            return
+        if self.tag in ('inbox', 'tickler'):
             return
 
         for item in state['items'].values():
