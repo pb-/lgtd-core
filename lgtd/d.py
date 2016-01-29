@@ -53,7 +53,10 @@ class StateManager(object):
             return True
 
     def push_commands(self, commands):
-        pass
+        with self.db.lock(), self.db.append(self.app_id) as f:
+            for command in commands:
+                line = self.cipher.encrypt(command.encode('utf-8'), self.app_id, f.tell())
+                f.write(line)
 
     def render_state(self, active_tag):
         today = str(date.today())
@@ -102,6 +105,9 @@ class GTDSocketHandler(WebSocketHandler):
             print('replying with state')
             state = self.state_manager.render_state(data['tag'])
             self.write_message(dumps({'msg': 'state', 'state': state}))
+        elif data['msg'] == 'push_commands':
+            print('pushing some commands')
+            self.state_manager.push_commands(data['cmds'])
 
     def notify(self):
         self.write_message('{"msg": "new_state"}')

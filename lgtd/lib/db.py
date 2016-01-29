@@ -78,18 +78,20 @@ class ClientDatabase(BaseDatabase):
     """
     @staticmethod
     def _read_line(f):
+        offset = f.tell()
         line = f.readline()
         if not line:
             f.close()
             return None
         else:
-            return (CommandCipher.extract_time(line), line, f)
+            return (CommandCipher.extract_time(line), line, f, offset)
 
-    def append_data(self, app_id, data):
+    @contextmanager
+    def append(self, app_id):
         path = os.path.join(self.data_path, app_id)
 
         with open(path, 'ab') as f:
-            f.write(data)
+            yield f
 
     def read_all(self, start_offs):
         lines = []
@@ -100,14 +102,14 @@ class ClientDatabase(BaseDatabase):
             f.seek(start_offs[app_id])
             line = self._read_line(f)
             if line:
-                lines.append(line + (app_id, offset))
+                lines.append(line + (app_id, ))
 
         while lines:
             lines.sort()
-            (_, line, f, app_id, offset) = lines[0]
+            (_, line, f, offset, app_id) = lines[0]
             yield line, app_id, offset
             del lines[0]
 
             line = self._read_line(f)
             if line:
-                lines.insert(0, line + (app_id, offset))
+                lines.insert(0, line + (app_id, ))

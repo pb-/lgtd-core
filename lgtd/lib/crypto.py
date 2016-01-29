@@ -15,7 +15,7 @@ def hash_password(password):
     h.update(salt)
     h.update(password)
 
-    return h.digest
+    return h.digest()
 
 
 class CommandCipher(object):
