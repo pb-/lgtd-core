@@ -1,4 +1,4 @@
 cryptography==1.2.1
+pyinotify==0.9.6
 tornado==4.3
 websocket-client==0.35.0
-pyinotify==0.9.6
