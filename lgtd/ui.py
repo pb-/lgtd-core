@@ -1,7 +1,6 @@
 import curses
 import logging
 import os
-import random
 import re
 import sys
 from datetime import date, timedelta
@@ -12,14 +11,74 @@ from threading import Thread
 
 from websocket import WebSocketApp
 
-ITEM_ID_LEN = 3
+from .lib import commands
+from .lib.constants import ITEM_ID_LEN
+from .lib.util import random_string
+
 IM_ADD = 0
 IM_EDIT = 1
 IM_PROC = 2
 
+ui_state = {
+    'active_tag': 0,
+    'active_item': 0,
+    'scroll_offset_tags': 0,
+    'scroll_offset_items': 0,
+    'input_mode': None,
+}
+
 
 class ParseError(Exception):
     pass
+
+
+class StateManagerThread(Thread):
+    msg_size_len = 10
+    msg_size_fmt = '{:0%d}' % msg_size_len
+
+    def __init__(self):
+        super(StateManagerThread, self).__init__()
+        self.daemon = True
+        self.read_fd, self.write_fd = os.pipe()
+
+    def _send(self, msg):
+        os.write(self.write_fd, self.msg_size_fmt.format(len(msg)))
+        os.write(self.write_fd, msg)
+
+    def stop(self):
+        self.socket.close()
+
+    def recv(self):
+        msg_size = int(os.read(self.read_fd, self.msg_size_len))
+        return loads(os.read(self.read_fd, msg_size))
+
+    def request_state(self, active_tag):
+        logging.debug('requesting state...')
+        self.socket.send(dumps({
+            'msg': 'request_state',
+            'tag': active_tag,
+        }))
+
+    def push_commands(self, cmds):
+        logging.debug('pushing commands...')
+        self.socket.send(dumps({
+            'msg': 'push_commands',
+            'cmds': map(str, cmds),
+        }))
+
+    def _on_open(self, socket):
+        self._send('{"msg": "new_state"}')
+
+    def _on_message(self, socket, message):
+        self._send(message)
+
+    def run(self):
+        self.socket = WebSocketApp(
+            'ws://127.0.0.1:9001/gtd',
+            on_open=self._on_open,
+            on_message=self._on_message)
+
+        self.socket.run_forever()
 
 
 def parse_nat_date(s):
@@ -59,29 +118,6 @@ def parse_nat_date(s):
     return tt
 
 
-def clamp_index(array, index):
-    if not array:
-        return 0
-    return max(0, min(len(array)-1, index))
-
-
-def gen_id(id_len):
-    alpha = ['{}'.format(x) for x in xrange(10)] + \
-            [chr(x) for x in xrange(ord('A'), ord('Z')+1)] + \
-            [chr(x) for x in xrange(ord('a'), ord('z')+1)]
-
-    return ''.join((random.choice(alpha) for x in xrange(id_len)))
-
-
-ui_state = {
-    'active_tag': 0,
-    'active_item': 0,
-    'scroll_offset_tags': 0,
-    'scroll_offset_items': 0,
-    'input_mode': None,
-}
-
-
 class WindowTooSmallError(Exception):
     pass
 
@@ -98,10 +134,6 @@ def render(scr, model_state, ui_state):
     col = curses.color_pair(1)
     scr.addstr(0, 0, ' ' * x, col)
     scr.addstr(0, 2, 'GTD', col)
-    #if ui_state['dirty']:
-    #    scr.addstr(0, 5, '*', col)
-    #if ui_state['syncing']:
-    #    scr.addstr(0, x - 2, 'S', col)
 
     height = content_height(scr)
     if height < 1:
@@ -152,44 +184,21 @@ def update_scroll(ui_state, key_offset, key_active):
         ui_state[key_offset] = page * ui_state['content_height']
 
 
-def validate_indexes(model_state, ui_state):
-    ui_state['active_tag'] = clamp_index(
-        model_state,
-        ui_state['active_tag'])
-    ui_state['active_item'] = clamp_index(
-        model_state[ui_state['active_tag']],
-        ui_state['active_item'])
-
-
-def process_item_raw(model_state, item, query):
+def process_item_raw(state_mgr, item, query):
     # first, try to interpret it as a date
     try:
-        date = '$' + parse_nat_date(query).isoformat()
-        tc = SetTagCommand(item.id, date)
-        model_state = eval_local_command(model_state, tc)
-        model_state = model_state.update_scheduled()
-        return model_state
+        date = '${}'.format(parse_nat_date(query))
+        cmd = commands.SetTagCommand(item['id'], date)
+        state_mgr.push_commands([cmd])
     except ParseError:
         pass
 
     if query.find(' ') != -1:
-        return model_state
+        return
 
-    # next, try to find a tag that matches
-    tag = query
-    try:
-        tag = model_state.find_tag(query).name
-    except ValueError:
-        pass
-
-    try:
-        ti, _ = model_state.find_item_index(item.id)
-    except ValueError:
-        return model_state
-
-    if tag != model_state[ti].name:
-        tc = SetTagCommand(item.id, tag)
-        return eval_local_command(model_state, tc)
+    # otherwise, interpret as tag
+    cmd = commands.SetTagCommand(item['id'], query)
+    state_mgr.push_commands([cmd])
 
 
 def handle_input(ch, state_mgr, model_state, ui_state):
@@ -213,18 +222,17 @@ def handle_input(ch, state_mgr, model_state, ui_state):
                 return True
 
             if im == IM_ADD:
-                tc = TitleCommand(gen_id(ITEM_ID_LEN),
-                                  ui_state['input_buffer'])
-                model_state = eval_local_command(model_state, tc)
-                tag = model_state[ui_state['active_tag']].name
+                set_title = commands.ItemTitleCommand(
+                    random_string(ITEM_ID_LEN), ui_state['input_buffer'])
+                tag = model_state['tags'][ui_state['active_tag']]['name']
                 if tag != 'inbox':
-                    tc = SetTagCommand(tc.item_id, tag)
-                    model_state = eval_local_command(model_state, tc)
+                    set_tag = commands.SetTagCommand(set_title.item_id, tag)
+                    state_mgr.push_commands([set_title, set_tag])
+                else:
+                    state_mgr.push_commands([set_title])
             elif im == IM_PROC:
-                item = model_state[ui_state['active_tag']][
-                    ui_state['active_item']]
-                model_state = process_item_raw(
-                    model_state, item, ui_state['input_buffer'])
+                item = model_state['items'][ui_state['active_item']]
+                process_item_raw(state_mgr, item, ui_state['input_buffer'])
 
         return True
     else:
@@ -251,35 +259,30 @@ def handle_input(ch, state_mgr, model_state, ui_state):
             ui_state['input_cursor_pos'] = 0
             ui_state['input_buffer'] = ''
         elif (ch == ord('p') and ui_state['active_tag'] == 0 and
-                len(model_state[0])):
+                model_state['tags'][0]['count']):
             ui_state['input_mode'] = IM_PROC
             ui_state['input_cursor_pos'] = 0
             ui_state['input_buffer'] = ''
-        elif ((ch == ord('d') or ch == ord('x')) and
-                len(model_state[ui_state['active_tag']])):
-            item_id = model_state[ui_state['active_tag']][
-                ui_state['active_item']
-            ].id
-            dc = DeleteItemCommand(item_id)
-            model_state = eval_local_command(model_state, dc)
+        elif (ch == ord('d') or ch == ord('x')) and model_state['items']:
+            item = model_state['items'][ui_state['active_item']]
+            cmd = commands.DeleteItemCommand(item['id'])
+            state_mgr.push_commands([cmd])
         elif (ch == ord('i') and ui_state['active_tag'] and
-                len(model_state[ui_state['active_tag']])):
-            item_id = model_state[ui_state['active_tag']][
-                ui_state['active_item']
-            ].id
-            uc = UnsetTagCommand(item_id)
-            model_state = eval_local_command(model_state, uc)
-        elif (ch == ord('D') and model_state[ui_state['active_tag']].name
-                not in DEFAULT_TAGS and not
-                len(model_state[ui_state['active_tag']])):
-            dt = DeleteTagCommand(
-                model_state[ui_state['active_tag']].name)
-            model_state = eval_local_command(model_state, dt)
+                model_state['items']):
+            item = model_state['items'][ui_state['active_item']]
+            cmd = commands.UnsetTagCommand(item['id'])
+            state_mgr.push_commands([cmd])
+        elif (ch == ord('D') and
+                not model_state['tags'][ui_state['active_tag']]['count']):
+            cmd = commands.DeleteTagCommand(
+                model_state['tags'][ui_state['active_tag']]['name'])
+            state_mgr.push_commands([cmd])
         elif ord('0') <= ch <= ord('9'):
-            num = (ch - ord('0') + 9) % 10
-            if num < len(model_state) and num != ui_state['active_tag']:
-                ui_state['active_tag'] = num
+            n = (ch - ord('0') + 9) % 10
+            if n < len(model_state['tags']) and n != ui_state['active_tag']:
+                ui_state['active_tag'] = n
                 ui_state['active_item'] = 0
+                state_mgr.request_state(model_state['tags'][n]['name'])
         else:
             return False
 
@@ -288,54 +291,6 @@ def handle_input(ch, state_mgr, model_state, ui_state):
         update_scroll(ui_state, 'scroll_offset_tags', 'active_tag')
 
         return True
-
-
-class StateManagerThread(Thread):
-    msg_size_len = 10
-    msg_size_fmt = '{:0%d}' % msg_size_len
-
-    def __init__(self):
-        super(StateManagerThread, self).__init__()
-        self.read_fd, self.write_fd = os.pipe()
-
-    def _send(self, msg):
-        os.write(self.write_fd, self.msg_size_fmt.format(len(msg)))
-        os.write(self.write_fd, msg)
-
-    def stop(self):
-        self.socket.close()
-
-    def recv(self):
-        msg_size = int(os.read(self.read_fd, self.msg_size_len))
-        return loads(os.read(self.read_fd, msg_size))
-
-    def request_state(self, active_tag):
-        logging.debug('requesting state...')
-        self.socket.send(dumps({
-            'msg': 'request_state',
-            'tag': active_tag,
-        }))
-
-    def push_commands(self, cmds):
-        logging.debug('pushing commands...')
-        self.socket.send(dumps({
-            'msg': 'push_commands',
-            'cmds': map(str, cmds),
-        }))
-
-    def _on_open(self, socket):
-        self._send('{"msg": "new_state"}')
-
-    def _on_message(self, socket, message):
-        self._send(message)
-
-    def run(self):
-        self.socket = WebSocketApp(
-            'ws://127.0.0.1:9001/gtd',
-            on_open=self._on_open,
-            on_message=self._on_message)
-
-        self.socket.run_forever()
 
 
 def main(scr):
@@ -383,24 +338,8 @@ def main(scr):
                 }
                 ui_state['active_tag'] = data['state']['active_tag']
 
-    # tear down websocket connection and wait for thread to end
-    state_mgr.stop()
-    state_mgr.join()
 
-
-def setup():
-    global key, local_id, server
+def run():
     logging.basicConfig(filename='/tmp/cgtd.log', level=logging.DEBUG)
     logging.debug('welcome')
-
-    #gtd_dir = os.path.join(os.getenv('HOME'), '.gtd', 'data')
-    #mkdir_p(gtd_dir)
-    #local_id = read_local_id()
-    #server = read_server()
-
-    #model_state = ModelState(Tag(t) for t in DEFAULT_TAGS)
-
     curses.wrapper(main)
-
-if __name__ == '__main__':
-    setup()

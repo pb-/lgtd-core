@@ -48,6 +48,7 @@ class StateManager(object):
             for line, app_id, offset in self.db.read_all(self.offsets):
                 cmd = Command.parse(self.cipher.decrypt(line, app_id, offset))
                 cmd.apply(self.state)
+                print('executing: {}'.format(str(cmd)))
 
             self.offsets = offsets
             return True
@@ -63,6 +64,9 @@ class StateManager(object):
         today = str(date.today())
         counts = defaultdict(int)
         items = []
+
+        if active_tag not in self.state['tag_order']:
+            active_tag = 'inbox'
 
         for item_id, item in self.state['items'].iteritems():
             actual_tag = self._display_tag(item['tag'], today)
