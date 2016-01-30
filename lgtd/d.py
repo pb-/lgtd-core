@@ -98,6 +98,9 @@ class GTDSocketHandler(WebSocketHandler):
         self.clients = clients
         self.state_manager = state_manager
 
+    def check_origin(self, origin):
+        return True
+
     def open(self):
         self.clients.append(self)
         print("WebSocket opened")
