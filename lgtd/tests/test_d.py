@@ -1,10 +1,10 @@
 import unittest
 from collections import OrderedDict
-from datetime import date
+from datetime import date, datetime
 
 from mock import patch
 
-from ..d import StateManager
+from ..d import StateManager, delta_to_midnight
 
 
 class DaemonTestCase(unittest.TestCase):
@@ -40,3 +40,23 @@ class DaemonTestCase(unittest.TestCase):
         }
 
         self.assertEqual(sm.render_state('inbox'), expected)
+
+    @patch('lgtd.d.datetime')
+    def test_midnight(self, mock_datetime):
+        def now():
+            return datetime(2016, 1, 31, 16, 48, 1, 49929)
+        setattr(mock_datetime, 'now', now)
+        expected = datetime(2016, 2, 1, 0, 5) - now()
+        self.assertEqual(delta_to_midnight(), expected)
+
+        def now():
+            return datetime(2016, 1, 31)
+        setattr(mock_datetime, 'now', now)
+        expected = datetime(2016, 2, 1, 0, 5) - now()
+        self.assertEqual(delta_to_midnight(), expected)
+
+        def now():
+            return datetime(2016, 1, 31, 0, 2, 56)
+        setattr(mock_datetime, 'now', now)
+        expected = datetime(2016, 2, 1, 0, 5) - now()
+        self.assertEqual(delta_to_midnight(), expected)

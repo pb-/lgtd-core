@@ -1,5 +1,5 @@
 from collections import OrderedDict, defaultdict
-from datetime import date
+from datetime import date, datetime, timedelta
 from getpass import getpass
 from json import dumps, loads
 
@@ -122,10 +122,36 @@ class GTDSocketHandler(WebSocketHandler):
         print("WebSocket closed")
 
 
-def callback(notifier):
+def change_callback(notifier):
+    print('change?')
     if notifier.state_manager.notify():
         for client in notifier.clients:
             client.notify()
+
+
+def delta_to_midnight():
+    """
+    Return a timedelta until next day five minutes past midnight.
+    """
+    now = datetime.now()
+    dt = now + timedelta(days=1)
+    midnight = dt.replace(hour=0, minute=5, second=0, microsecond=0)
+    return midnight - now
+
+
+def midnight_callback(ioloop, clients):
+    """
+    Make sure clients receive new state after the day rolls over (may affect
+    inbox and tickler for scheduled items).
+    """
+    for client in clients:
+        client.notify()
+
+    schedule_midnight(ioloop, clients)
+
+
+def schedule_midnight(ioloop, clients):
+    ioloop.add_timeout(delta_to_midnight(), midnight_callback, ioloop, clients)
 
 
 def run():
@@ -140,7 +166,7 @@ def run():
     ensure_data_dir()
     wm = pyinotify.WatchManager()
     notifier = pyinotify.TornadoAsyncNotifier(
-        wm, ioloop.IOLoop.current(), callback, pyinotify.ProcessEvent())
+        wm, ioloop.IOLoop.current(), change_callback, pyinotify.ProcessEvent())
     notifier.clients = clients
     notifier.state_manager = state_manager
     wm.add_watch(get_lock_file(), pyinotify.IN_CLOSE_WRITE)
@@ -153,4 +179,6 @@ def run():
             'state_manager': state_manager}),
     ])
     app.listen(9001, address='127.0.0.1')
+
+    schedule_midnight(ioloop.IOLoop.current(), clients)
     ioloop.IOLoop.current().start()
