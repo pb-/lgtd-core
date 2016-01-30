@@ -6,8 +6,9 @@ from json import loads
 from tornado import ioloop, web
 
 from ..lib.db import SyncableDatabase
+from ..lib.constants import APP_ID_LEN
 
-IS_VALID_APP_ID = re.compile('^[a-zA-Z0-9]{2}$').match
+IS_VALID_APP_ID = re.compile('^[a-zA-Z0-9]{%d}$' % APP_ID_LEN).match
 IS_VALID_TOKEN = re.compile('^[a-zA-Z0-9]{10}$').match
 
 
