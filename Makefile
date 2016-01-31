@@ -1,6 +1,6 @@
-all: check isort test
+all: check sort test
 
-isort:
+sort:
 	isort --recursive lgtd
 
 check:
