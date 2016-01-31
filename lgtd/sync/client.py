@@ -1,4 +1,5 @@
 import logging
+import os
 from collections import defaultdict
 from datetime import datetime, timedelta
 from json import dumps
@@ -7,8 +8,8 @@ import pyinotify
 import requests
 
 from ..lib.db import SyncableDatabase
-from ..lib.util import (ensure_lock_file, get_data_dir, get_lock_file,
-                        get_sync_config)
+from ..lib.util import (ensure_lock_file, get_certificate_file, get_data_dir,
+                        get_lock_file, get_sync_config)
 
 SYNC_PERIODIC_INTERVAL = timedelta(minutes=15)
 SYNC_DELAY = timedelta(seconds=10)
@@ -18,8 +19,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 def sync_url(config, op):
-    # TODO change to https (only)
-    return 'http://{}:{}/gtd/{}/{}'.format(
+    return 'https://{}:{}/gtd/{}/{}'.format(
         config['host'], config['port'], config['sync_auth'], op)
 
 
@@ -44,9 +44,9 @@ class ProcessEvent(pyinotify.ProcessEvent):
 
 
 def make_request(url, data):
-    # TODO verify=
     response = requests.post(
-        url, data=data, timeout=REQUEST_TIMEOUT.total_seconds())
+        url, data=data, timeout=REQUEST_TIMEOUT.total_seconds(),
+        verify=get_certificate_file())
     response.raise_for_status()
     return response
 
@@ -118,4 +118,8 @@ def loop(config, db):
 
 def run():
     ensure_lock_file()
+    cert = get_certificate_file()
+    if not os.path.isfile(cert):
+        raise ValueError('no certificate at found at {}'.format(cert))
+
     loop(get_sync_config(), SyncableDatabase(get_data_dir(), get_lock_file()))

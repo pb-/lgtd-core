@@ -1,9 +1,10 @@
 import os
 import re
+from argparse import ArgumentParser
 from collections import defaultdict
 from json import loads
 
-from tornado import ioloop, web
+from tornado import httpserver, ioloop, web
 
 from ..lib.constants import APP_ID_LEN
 from ..lib.db import SyncableDatabase
@@ -71,20 +72,23 @@ def parse_push_input(encoded):
     return json
 
 
-def authenticate(auth_token):
+def authenticate(data_dir, auth_token):
     if not (IS_VALID_TOKEN(auth_token) and
-            os.path.isdir(os.path.join('data', auth_token))):
+            os.path.isdir(os.path.join(data_dir, auth_token))):
         raise AuthenticationError
 
 
 class BaseHandler(web.RequestHandler):
+    def initialize(self, args):
+        self.data_dir = args.data_dir
+
     def process(self):
         raise NotImplemented
 
     def post(self, auth_token):
         try:
-            authenticate(auth_token)
-            self.db = SyncableDatabase(os.path.join('data', auth_token))
+            authenticate(self.data_dir, auth_token)
+            self.db = SyncableDatabase(os.path.join(self.data_dir, auth_token))
             self.process()
         except AuthenticationError:
             self.send_error(401)
@@ -119,14 +123,26 @@ class PushHandler(BaseHandler):
             self.send_error(400)
 
 
-def make_app():
+def make_app(args):
     return web.Application([
-        (r'/gtd/([0-9a-zA-Z]{10})/pull', PullHandler),
-        (r'/gtd/([0-9a-zA-Z]{10})/push', PushHandler),
+        (r'/gtd/([0-9a-zA-Z]{10})/pull', PullHandler, {'args': args}),
+        (r'/gtd/([0-9a-zA-Z]{10})/push', PushHandler, {'args': args}),
     ])
 
 
 def run():
-    app = make_app()
-    app.listen(9002)
+    parser = ArgumentParser(description='lgtd suite sync daemon')
+    parser.add_argument('data_dir', help='path to data directory')
+    parser.add_argument('certificate', help='path to certificate file')
+    parser.add_argument('key', help='path to key file')
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.data_dir):
+        raise ValueError('"{}" is not a directory'.format(args.data_dir))
+
+    server = httpserver.HTTPServer(make_app(args), ssl_options={
+        'certfile': args.certificate,
+        'keyfile': args.key,
+    })
+    server.listen(9002)
     ioloop.IOLoop.current().start()
