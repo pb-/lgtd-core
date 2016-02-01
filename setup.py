@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='lgtd-suite',
@@ -8,7 +8,7 @@ setup(
     author='Paul Baecher',
     author_email='pbaecher@gmail.com',
     url='https://github.com/pb-/lgtd-suite',
-    packages=['lgtd'],
+    packages=find_packages('.'),
     entry_points={
         'console_scripts': [
             'lgtd = lgtd.ui:run',

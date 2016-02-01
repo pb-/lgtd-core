@@ -11,6 +11,9 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 def hash_password(password):
     salt = '\xf8\x99\x8a\x8c\x2a\x3a\x94\x08\x61\x83\x0a\x4d\xab\x62\xfe\x46'
+    password = password.encode('utf-8') if isinstance(password, unicode) \
+        else password
+
     h = sha256()
     h.update(salt)
     h.update(password)
