@@ -15,6 +15,7 @@ setup(
             'lgtd_d = lgtd.d:run',
             'lgtd_sync = lgtd.sync.client:run',
             'lgtd_syncd = lgtd.sync.server:run',
+            'lgtd_dbadm = lgtd.tools.dbadm:run',
         ],
     },
 )
