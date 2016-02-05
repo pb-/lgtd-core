@@ -17,7 +17,7 @@ from .lib.util import (ensure_data_dir, ensure_lock_file, get_data_dir,
 class StateManager(object):
     def __init__(self, app_id, db, cipher):
         self.state = {
-            'tag_order': ['inbox', 'todo', 'someday', 'tickler', 'ref'],
+            'tag_order': ['inbox', 'todo', 'ref', 'someday', 'tickler'],
             'items': OrderedDict(),
         }
         self.offsets = defaultdict(int)
