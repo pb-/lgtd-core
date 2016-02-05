@@ -12,6 +12,7 @@ setup(
     entry_points={
         'console_scripts': [
             'lgtd = lgtd.ui:run',
+            'lgtd_i3 = lgtd.i3:run',
             'lgtd_d = lgtd.d:run',
             'lgtd_sync = lgtd.sync.client:run',
             'lgtd_syncd = lgtd.sync.server:run',
