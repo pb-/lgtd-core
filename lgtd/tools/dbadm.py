@@ -1,7 +1,8 @@
+import os
 from argparse import ArgumentParser
 from collections import defaultdict
 from getpass import getpass
-from sys import exit, stderr, stdout
+from sys import exit, stderr, stdin, stdout
 
 from cryptography.exceptions import InvalidTag
 
@@ -9,16 +10,21 @@ from ..lib.crypto import CommandCipher, hash_password
 from ..lib.db import ClientDatabase
 
 
-def get_args():
+def parse_args():
     parser = ArgumentParser()
-    parser.add_argument('command', choices=['dump'])
-    parser.add_argument('data_dir')
-    parser.add_argument('-f', '--force', help='keep going when encountering '
-                        'unauthenticated commands (but still ignore them)',
-                        action='store_true')
-    parser.add_argument('-e', '--encrypt', metavar='APP_ID', help='re-encrypt '
-                        'all commands under a new password and use APP_ID for '
-                        'the new application id')
+    subparsers = parser.add_subparsers()
+
+    dump_parser = subparsers.add_parser('dump')
+    dump_parser.add_argument('data_dir')
+    dump_parser.add_argument(
+        '-f', '--force', help='keep going when encountering unauthenticated '
+        'commands (but still ignore them)', action='store_true')
+    dump_parser.set_defaults(func=dump)
+
+    encrypt_parser = subparsers.add_parser('encrypt')
+    encrypt_parser.add_argument('app_id')
+    encrypt_parser.set_defaults(func=encrypt)
+
     return parser.parse_args()
 
 
@@ -43,12 +49,9 @@ def get_keys():
     return keys
 
 
-def get_new_key():
-    return hash_password(getpass('New password for re-encryption: '))
-
-
-def dump(args, keys, db, new_key):
-    out_offset = 0
+def dump(args):
+    keys = get_keys()
+    db = ClientDatabase(args.data_dir)
 
     for line, app_id, offset in db.read_all(defaultdict(int)):
         decrypted = False
@@ -56,15 +59,8 @@ def dump(args, keys, db, new_key):
             cipher = CommandCipher(key)
             try:
                 plaintext = cipher.decrypt(line, app_id, offset)
-                if args.encrypt:
-                    cipher = CommandCipher(new_key)
-                    ciphertext = cipher.encrypt(
-                        plaintext, args.encrypt, out_offset)
-                    stdout.write(ciphertext)
-                    out_offset += len(ciphertext)
-                else:
-                    stdout.write(plaintext)
-                    stdout.write('\n')
+                stdout.write(plaintext)
+                stdout.write('\n')
                 decrypted = True
             except InvalidTag:
                 pass
@@ -81,11 +77,22 @@ def dump(args, keys, db, new_key):
             exit(1)
 
 
-def run():
-    args = get_args()
-    keys = get_keys()
-    db = ClientDatabase(args.data_dir)
-    new_key = get_new_key() if args.encrypt else None
+def encrypt(args):
+    out_offset = 0
+    password = os.getenv('LGTD_PASSWORD')
+    if password is None:
+        raise Exception('Please provide the LGTD_PASSWORD environment var')
+    key = hash_password(password)
 
-    if args.command == 'dump':
-        dump(args, keys, db, new_key)
+    for line in stdin:
+        stripped = line.strip()
+        cipher = CommandCipher(key)
+        ciphertext = cipher.encrypt(
+            stripped, args.app_id, out_offset)
+        stdout.write(ciphertext)
+        out_offset += len(ciphertext)
+
+
+def run():
+    args = parse_args()
+    args.func(args)
