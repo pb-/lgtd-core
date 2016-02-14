@@ -111,7 +111,8 @@ class GTDSocketHandler(WebSocketHandler):
 
         if data['msg'] == 'request_state':
             print('replying with state')
-            state = self.state_manager.render_state(data['tag'])
+            state = self.state_manager.render_state(
+                data['tag'].encode('utf-8'))
             self.write_message(dumps({'msg': 'state', 'state': state}))
         elif data['msg'] == 'push_commands':
             print('pushing some commands')

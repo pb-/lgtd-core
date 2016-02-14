@@ -5,6 +5,7 @@ import re
 import sys
 from datetime import date, timedelta
 from json import dumps, loads
+from locale import LC_ALL, setlocale
 from select import error as select_error
 from select import select
 from threading import Thread
@@ -146,7 +147,7 @@ def render(scr, model_state, ui_state):
         if not ii < height:
             break
 
-        scr.addnstr(ii+2, 3, tag['name'], 9)
+        scr.addnstr(ii+2, 3, tag['name'].encode('utf-8'), 9)
         if tag['count']:
             scr.addstr(' ({})'.format(tag['count']))
         if i == ui_state['active_tag']:
@@ -159,7 +160,7 @@ def render(scr, model_state, ui_state):
         if not ii < height:
             break
 
-        scr.addstr(ii+2, 20, item['title'])
+        scr.addstr(ii+2, 20, item['title'].encode('utf-8'))
         if 'scheduled' in item:
             scr.addstr('  [{}]'.format(
                 item['scheduled']), curses.color_pair(2))
@@ -342,4 +343,5 @@ def main(scr):
 def run():
     logging.basicConfig(filename='/tmp/cgtd.log', level=logging.DEBUG)
     logging.debug('welcome')
+    setlocale(LC_ALL, '')
     curses.wrapper(main)
