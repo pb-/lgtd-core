@@ -107,3 +107,24 @@ class CommandsTestCase(unittest.TestCase):
 
         DeleteTagCommand('t2').apply(state)
         self.assertNotIn('t2', state['tag_order'])
+
+    @staticmethod
+    def get_special_state():
+        return {
+            'tag_order': ['inbox', 'tickler', 'other'],
+            'items': OrderedDict([
+                ('i00', {'title': 'the first item', 'tag': 'other'}),
+                ('i01', {'title': 'the second item', 'tag': 'other'}),
+            ]),
+        }
+
+    def test_special_tags(self):
+        state = self.get_special_state()
+
+        SetTagCommand('i00', 'inbox').apply(state)  # not directly setable
+        SetTagCommand('i01', 'tickler').apply(state)  # not directly setable
+        self.assertEqual(state, self.get_special_state())
+
+        DeleteTagCommand('inbox').apply(state)  # not deletable
+        DeleteTagCommand('tickler').apply(state)  # not deletable
+        self.assertEqual(state, self.get_special_state())

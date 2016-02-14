@@ -85,6 +85,9 @@ class SetTagCommand(Command):
     args = ['item_id', 'tag']
 
     def apply(self, state):
+        if self.tag in ('inbox', 'tickler'):
+            return
+
         try:
             state['items'][self.item_id]['tag'] = self.tag
         except KeyError:
