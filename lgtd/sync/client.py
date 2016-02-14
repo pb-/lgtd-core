@@ -24,8 +24,9 @@ def sync_url(config, op):
 
 
 class ProcessEvent(pyinotify.ProcessEvent):
-    def my_init(self):
+    def my_init(self, db):
         self.schedule(timedelta())
+        self.db = db
 
     def schedule(self, delta):
         logging.debug('scheduling next sync in %s' % delta)
@@ -38,9 +39,15 @@ class ProcessEvent(pyinotify.ProcessEvent):
     def process_default(self, event):
         logging.debug('change notification')
 
+        with self.db.lock(True):
+            local_offs = self.db.get_offsets()
+
         # if there are no changes, sync immediately
         # else use delay
-        self.schedule(SYNC_DELAY)
+        if local_offs == self.last_local_offs:
+            self.schedule(timedelta())
+        else:
+            self.schedule(SYNC_DELAY)
 
 
 def make_request(url, data):
@@ -92,10 +99,13 @@ def try_sync(config, db):
 def loop(config, db):
     wm = pyinotify.WatchManager()
     wm.add_watch(get_lock_file(), pyinotify.IN_CLOSE_WRITE)
-    pe = ProcessEvent()
+    pe = ProcessEvent(db=db)
     notifier = pyinotify.Notifier(wm, pe)
 
     while True:
+        with db.lock(True):
+            pe.last_local_offs = db.get_offsets()
+
         logging.debug('waiting for events up to %d ms' % pe.timeout())
         if notifier.check_events(pe.timeout()):
             notifier.read_events()
