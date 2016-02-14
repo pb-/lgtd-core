@@ -170,7 +170,8 @@ def render(scr, model_state, ui_state):
     if ui_state['input_mode'] is not None:
         curses.curs_set(1)
         scr.addstr(y-1, 2, '> ' + ui_state['input_buffer'])
-        scr.move(y-1, 4+ui_state['input_cursor_pos'])
+        scr.move(y-1, 4 + len(
+            ui_state['input_buffer'].decode('utf-8', 'ignore')))
     else:
         curses.curs_set(0)
 
@@ -205,17 +206,11 @@ def process_item_raw(state_mgr, item, query):
 def handle_input(ch, state_mgr, model_state, ui_state):
     if ui_state['input_mode'] is not None:
         if 32 <= ch < 256:
-            before = ui_state['input_buffer'][:ui_state['input_cursor_pos']]
-            after = ui_state['input_buffer'][ui_state['input_cursor_pos']:]
-            ui_state['input_buffer'] = before + chr(ch) + after
-            ui_state['input_cursor_pos'] += 1
+            ui_state['input_buffer'] += chr(ch)
         elif ch == curses.KEY_BACKSPACE:
-            if ui_state['input_cursor_pos'] > 0:
-                before = \
-                    ui_state['input_buffer'][:ui_state['input_cursor_pos']-1]
-                after = ui_state['input_buffer'][ui_state['input_cursor_pos']:]
-                ui_state['input_buffer'] = before + after
-                ui_state['input_cursor_pos'] -= 1
+            if ui_state['input_buffer']:
+                ui_state['input_buffer'] = ui_state['input_buffer'] \
+                    .decode('utf-8')[:-1].encode('utf-8')
         elif ch == 27 or ch == 10:
             im = ui_state['input_mode']
             ui_state['input_mode'] = None
@@ -257,12 +252,10 @@ def handle_input(ch, state_mgr, model_state, ui_state):
                 ui_state['active_item']+1)
         elif ch == ord('a') or ch == 10:
             ui_state['input_mode'] = IM_ADD
-            ui_state['input_cursor_pos'] = 0
             ui_state['input_buffer'] = ''
         elif (ch == ord('p') and ui_state['active_tag'] == 0 and
                 model_state['tags'][0]['count']):
             ui_state['input_mode'] = IM_PROC
-            ui_state['input_cursor_pos'] = 0
             ui_state['input_buffer'] = ''
         elif (ch == ord('d') or ch == ord('x')) and model_state['items']:
             item = model_state['items'][ui_state['active_item']]
