@@ -9,9 +9,12 @@ setup(
     author_email='pbaecher@gmail.com',
     url='https://github.com/pb-/lgtd-suite',
     packages=find_packages('.'),
+    scripts=[
+        'scripts/lgtd',
+    ],
     entry_points={
         'console_scripts': [
-            'lgtd = lgtd.ui:run',
+            'lgtd_ui = lgtd.ui:run',
             'lgtd_i3 = lgtd.i3:run',
             'lgtd_d = lgtd.d:run',
             'lgtd_sync = lgtd.sync.client:run',

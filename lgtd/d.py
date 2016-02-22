@@ -1,7 +1,9 @@
+from argparse import ArgumentParser
 from collections import OrderedDict, defaultdict
 from datetime import date, datetime, timedelta
 from getpass import getpass
 from json import dumps, loads
+from os import fork
 
 import pyinotify
 from tornado import ioloop, web
@@ -158,9 +160,24 @@ def schedule_midnight(ioloop, clients):
     ioloop.add_timeout(delta_to_midnight(), midnight_callback, ioloop, clients)
 
 
+def parse_args():
+    parser = ArgumentParser(description='local data service for lgtd')
+    parser.add_argument(
+        '-d', '--daemon', action='store_true', help='daemonize after asking '
+        'for the encryption passphrase')
+    return parser.parse_args()
+
+
 def run():
     clients = []
+    args = parse_args()
     key = hash_password(getpass())
+
+    if args.daemon:
+        pid = fork()
+        if pid:
+            return 0
+
     config = get_local_config()
     state_manager = StateManager(
         config['app_id'],
