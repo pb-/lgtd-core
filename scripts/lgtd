@@ -6,6 +6,11 @@ pgrep -x lgtd_d > /dev/null
 if [ $? -ne 0 ]
 then
 	"$dirname"/lgtd_d --daemon
+	if [ $? -ne 0 ]
+	then
+		echo "problem starting lgtd_d, aborting"
+		exit 1
+	fi
 fi
 
 "$dirname"/lgtd_ui

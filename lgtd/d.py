@@ -17,6 +17,7 @@ from .lib.util import (ensure_data_dir, ensure_lock_file, get_data_dir,
                        get_local_config, get_lock_file)
 
 logger = logging.getLogger(__name__)
+STATUS_OK = '\x00'
 
 
 class StateManager(object):
@@ -200,6 +201,7 @@ def run_daemon(args, key, pipe_write):
 
     if pipe_write:
         # notify parent proc that we are listening now
+        os.write(pipe_write, STATUS_OK)
         os.close(pipe_write)
 
     schedule_midnight(ioloop.IOLoop.current(), clients)
@@ -220,8 +222,8 @@ def run():
         pid = os.fork()
         if pid:
             os.close(pipe_write)
-            os.read(pipe_read, 1)  # wait until we are listening
-            return 0
+            status = os.read(pipe_read, 1)  # wait until we are listening
+            return 0 if status == STATUS_OK else 1
         else:
             os.close(pipe_read)
     else:
