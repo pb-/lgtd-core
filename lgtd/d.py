@@ -12,7 +12,7 @@ from tornado.websocket import WebSocketHandler
 
 from .lib.commands import Command
 from .lib.crypto import CommandCipher, hash_password
-from .lib.db import ClientDatabase
+from .lib.db.client import Database
 from .lib.util import (ensure_data_dir, ensure_lock_file, get_data_dir,
                        get_local_config, get_lock_file)
 
@@ -178,7 +178,7 @@ def run_daemon(args, key, pipe_write):
     config = get_local_config()
     state_manager = StateManager(
         config['app_id'],
-        ClientDatabase(get_data_dir(), get_lock_file()), CommandCipher(key))
+        Database(get_data_dir(), get_lock_file()), CommandCipher(key))
 
     ensure_lock_file()
     ensure_data_dir()

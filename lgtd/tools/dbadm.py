@@ -7,7 +7,7 @@ from sys import exit, stderr, stdin, stdout
 from cryptography.exceptions import InvalidTag
 
 from ..lib.crypto import CommandCipher, hash_password
-from ..lib.db import ClientDatabase
+from ..lib.db.client import Database
 
 
 def parse_args():
@@ -51,7 +51,7 @@ def get_keys():
 
 def dump(args):
     keys = get_keys()
-    db = ClientDatabase(args.data_dir)
+    db = Database(args.data_dir)
 
     for line, app_id, offset in db.read_all(defaultdict(int)):
         decrypted = False

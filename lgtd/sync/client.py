@@ -8,7 +8,7 @@ from json import dumps
 import pyinotify
 import requests
 
-from ..lib.db import SyncableDatabase
+from ..lib.db.syncable import Database
 from ..lib.util import (ensure_lock_file, get_certificate_file, get_data_dir,
                         get_lock_file, get_sync_config)
 
@@ -156,4 +156,4 @@ def run():
     else:
         logging.basicConfig(level=logging.DEBUG)
 
-    loop(config, SyncableDatabase(get_data_dir(), get_lock_file()))
+    loop(config, Database(get_data_dir(), get_lock_file()))

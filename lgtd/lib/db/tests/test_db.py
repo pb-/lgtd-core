@@ -1,7 +1,7 @@
 import unittest
 from collections import defaultdict
 
-from ..db import SyncableDatabase
+from ..syncable import Database
 
 
 class ServerTestCase(unittest.TestCase):
@@ -15,18 +15,18 @@ class ServerTestCase(unittest.TestCase):
             'ab': [139, 'foo'],
             'Qi': [80, 'foo'],
         })
-        self.assertTrue(SyncableDatabase.is_gapless(local_offs, remote_data))
+        self.assertTrue(Database.is_gapless(local_offs, remote_data))
 
         remote_data = defaultdict(int, {
             '9p': [1, 'foo'],
             'ab': [139, 'foo'],
             'Qi': [80, 'foo'],
         })
-        self.assertFalse(SyncableDatabase.is_gapless(local_offs, remote_data))
+        self.assertFalse(Database.is_gapless(local_offs, remote_data))
 
         remote_data = defaultdict(int, {
             '9p': [0, 'foo'],
             'ab': [139, 'foo'],
             'Qi': [4880, 'foo'],
         })
-        self.assertFalse(SyncableDatabase.is_gapless(local_offs, remote_data))
+        self.assertFalse(Database.is_gapless(local_offs, remote_data))
