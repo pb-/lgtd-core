@@ -9,6 +9,13 @@ setup(
     author_email='pbaecher@gmail.com',
     url='https://github.com/pb-/lgtd-suite',
     packages=find_packages('.'),
+    install_requires=[
+        'cryptography >=1.2.1,<2',
+        'pyinotify >=0.9.6,<1',
+        'requests >=2.9.1,<3',
+        'tornado >=4.3',
+        'websocket-client >=0.35.0,<1',
+    ],
     scripts=[
         'scripts/lgtd',
     ],
