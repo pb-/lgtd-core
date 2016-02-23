@@ -1,0 +1,11 @@
+#!/bin/bash
+
+dirname=$(dirname $0)
+
+pgrep -x lgtd_d > /dev/null
+if [ $? -ne 0 ]
+then
+	"$dirname"/lgtd_d --daemon
+fi
+
+"$dirname"/lgtd_ui
