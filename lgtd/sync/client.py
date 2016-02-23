@@ -1,5 +1,6 @@
 import logging
 import os
+from argparse import ArgumentParser
 from collections import defaultdict
 from datetime import datetime, timedelta
 from json import dumps
@@ -15,7 +16,8 @@ SYNC_PERIODIC_INTERVAL = timedelta(minutes=15)
 SYNC_DELAY = timedelta(seconds=10)
 SYNC_RETRY_DELAY = timedelta(seconds=30)
 REQUEST_TIMEOUT = timedelta(seconds=5)
-logging.basicConfig(level=logging.DEBUG)
+
+logger = logging.getLogger(__name__)
 
 
 def sync_url(config, op):
@@ -29,7 +31,7 @@ class ProcessEvent(pyinotify.ProcessEvent):
         self.db = db
 
     def schedule(self, delta):
-        logging.debug('scheduling next sync in %s' % delta)
+        logger.debug('scheduling next sync in %s' % delta)
         self.next_sync = datetime.now() + delta
 
     def timeout(self):
@@ -37,7 +39,7 @@ class ProcessEvent(pyinotify.ProcessEvent):
             0, int((self.next_sync - datetime.now()).total_seconds() * 1000))
 
     def process_default(self, event):
-        logging.debug('change notification')
+        logger.debug('change notification')
 
         with self.db.lock(True):
             local_offs = self.db.get_offsets()
@@ -62,13 +64,13 @@ def sync(config, db):
     with db.lock(True):
         local_offs = db.get_offsets()
 
-    logging.debug('sync: pull')
+    logger.debug('sync: pull')
     response = make_request(
         sync_url(config, 'pull'), dumps({'offs': local_offs}))
     remote = response.json()
     if remote['data'] and db.is_gapless(local_offs, remote['data']):
         if db.is_gapless(local_offs, remote['data']):
-            logging.debug('sync: new data from pull')
+            logger.debug('sync: new data from pull')
             with db.lock():
                 db.insert_data(local_offs, remote['data'])
 
@@ -76,22 +78,22 @@ def sync(config, db):
         missing_data = db.get_missing_data(
             local_offs, defaultdict(int, remote['offs']))
         if missing_data:
-            logging.debug('sync: push')
+            logger.debug('sync: push')
             make_request(
                 sync_url(config, 'push'), dumps({'data': missing_data}))
         else:
-            logging.debug('sync: no push needed')
+            logger.debug('sync: no push needed')
 
 
 def try_sync(config, db):
     try:
-        logging.debug('syncing now...')
+        logger.debug('syncing now...')
         sync(config, db)
     except requests.exceptions.RequestException as e:
-        logging.exception(e)
+        logger.exception(e)
         return False
     finally:
-        logging.debug('sync done.')
+        logger.debug('sync done.')
 
     return True
 
@@ -106,7 +108,7 @@ def loop(config, db):
         with db.lock(True):
             pe.last_local_offs = db.get_offsets()
 
-        logging.debug('waiting for events up to %d ms' % pe.timeout())
+        logger.debug('waiting for events up to %d ms' % pe.timeout())
         if notifier.check_events(pe.timeout()):
             notifier.read_events()
             notifier.process_events()
@@ -126,10 +128,32 @@ def loop(config, db):
                 wm.set_ignore_events(False)
 
 
+def parse_args():
+    parser = ArgumentParser(description='synchronization service for lgtd')
+    parser.add_argument(
+        '-d', '--daemon', action='store_true', help='fork into background')
+    return parser.parse_args()
+
+
 def run():
     ensure_lock_file()
     cert = get_certificate_file()
     if not os.path.isfile(cert):
         raise ValueError('no certificate at found at {}'.format(cert))
+    config = get_sync_config()
 
-    loop(get_sync_config(), SyncableDatabase(get_data_dir(), get_lock_file()))
+    args = parse_args()
+
+    if args.daemon:
+        logger.setLevel(logging.INFO)
+        handler = logging.handlers.SysLogHandler('/dev/log')
+        handler.setFormatter(logging.Formatter('%(name)s %(message)s'))
+        logger.addHandler(handler)
+
+        pid = os.fork()
+        if pid:
+            return 0
+    else:
+        logging.basicConfig(level=logging.DEBUG)
+
+    loop(config, SyncableDatabase(get_data_dir(), get_lock_file()))
