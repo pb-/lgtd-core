@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dirname=$(dirname $0)
+dirname=$(dirname "$0")
 
 pgrep -x lgtd_d > /dev/null
 if [ $? -ne 0 ]
@@ -13,4 +13,4 @@ then
 	fi
 fi
 
-"$dirname"/lgtd_ui
+exec "$dirname"/lgtd_ui
