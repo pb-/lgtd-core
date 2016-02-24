@@ -94,7 +94,7 @@ def try_sync(config, db):
         logger.exception(e)
         return False
     finally:
-        logger.debug('sync done.')
+        logger.info('sync done.')
 
     return True
 
