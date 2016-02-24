@@ -56,6 +56,7 @@ def get_config(conf_file, default_content_handler, create_new=False):
     path = os.path.join(get_lgtd_dir(), conf_file)
 
     if create_new:
+        ensure_dir(get_lgtd_dir())
         with open(path, 'w') as f:
             json.dump(default_content_handler(), f, indent=2, sort_keys=True)
             f.write('\n')
