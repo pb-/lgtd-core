@@ -2,6 +2,16 @@
 
 dirname=$(dirname "$0")
 
+pgrep -x lgtd_sync > /dev/null
+if [ $? -ne 0 ]
+then
+	"$dirname"/lgtd_sync --daemon
+	if [ $? -ne 0 ]
+	then
+		echo "warning: could not start lgtd_sync"
+	fi
+fi
+
 pgrep -x lgtd_d > /dev/null
 if [ $? -ne 0 ]
 then
