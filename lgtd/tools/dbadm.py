@@ -1,4 +1,3 @@
-import os
 from argparse import ArgumentParser
 from collections import defaultdict
 from getpass import getpass
