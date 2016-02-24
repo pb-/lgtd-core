@@ -19,6 +19,9 @@ def parse_args():
     dump_parser.add_argument(
         '-f', '--force', help='keep going when encountering unauthenticated '
         'commands (but still ignore them)', action='store_true')
+    dump_parser.add_argument(
+        '-t', '--time', help='display extracted IV time as well',
+        action='store_true')
     dump_parser.set_defaults(func=dump)
 
     encrypt_parser = subparsers.add_parser('encrypt')
@@ -58,6 +61,9 @@ def dump(args):
         for key in keys:
             cipher = CommandCipher(key)
             try:
+                if args.time:
+                    time = CommandCipher.extract_time(line)
+                    stdout.write('{:.3f} '.format(time))
                 plaintext = cipher.decrypt(line, app_id, offset)
                 stdout.write(plaintext)
                 stdout.write('\n')
