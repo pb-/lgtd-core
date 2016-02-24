@@ -85,9 +85,11 @@ def dump(args):
 
 def encrypt(args):
     out_offset = 0
-    password = os.getenv('LGTD_PASSWORD')
-    if password is None:
-        raise Exception('Please provide the LGTD_PASSWORD environment var')
+    password = getpass()
+    confirmation = getpass('Once again: ')
+    if confirmation != password:
+        stderr.write('Sorry, passwords do not match\n')
+        return 1
     key = hash_password(password)
 
     for line in stdin:
