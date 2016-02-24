@@ -141,7 +141,10 @@ def run():
     cert = get_certificate_file()
     if not os.path.isfile(cert):
         raise ValueError('no certificate at found at {}'.format(cert))
+
     config = get_sync_config()
+    if not config['host'] or not config['sync_auth']:
+        raise ValueError('sync host or auth not configured')
 
     args = parse_args()
 
