@@ -227,6 +227,7 @@ def run():
             return 0 if status == STATUS_OK else 1
         else:
             os.close(pipe_read)
+            os.setpgrp()
     else:
         logging.basicConfig(level=logging.DEBUG)
 

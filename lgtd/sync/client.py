@@ -159,6 +159,7 @@ def run():
         pid = os.fork()
         if pid:
             return 0
+        os.setpgrp()
     else:
         logging.basicConfig(level=logging.DEBUG)
 
