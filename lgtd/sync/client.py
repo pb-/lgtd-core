@@ -68,6 +68,7 @@ def sync(config, db):
     logger.debug('sync: pull')
     response = make_request(
         sync_url(config, 'pull'), dumps({'offs': local_offs}))
+    response.raise_for_status()
     remote = response.json()
     if remote['data'] and db.is_gapless(local_offs, remote['data']):
         if db.is_gapless(local_offs, remote['data']):
@@ -88,13 +89,14 @@ def sync(config, db):
 
 def try_sync(config, db):
     try:
-        logger.debug('syncing now...')
+        start = datetime.now()
+        logger.info('syncing now...')
         sync(config, db)
     except requests.exceptions.RequestException as e:
-        logger.exception(e)
+        logger.exception('sync failed: ')
         return False
     finally:
-        logger.info('sync done.')
+        logger.info('sync done, took {}'.format(datetime.now() - start))
 
     return True
 
