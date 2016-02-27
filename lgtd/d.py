@@ -174,9 +174,8 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_daemon(args, key, pipe_write):
+def run_daemon(args, config, key, pipe_write):
     clients = []
-    config = get_local_config()
     state_manager = StateManager(
         config['app_id'],
         Database(get_data_dir(), get_lock_file()), CommandCipher(key))
@@ -209,9 +208,17 @@ def run_daemon(args, key, pipe_write):
     ioloop.IOLoop.current().start()
 
 
+def get_key(config):
+    if 'key' in config:
+        return config['key'].decode('hex')
+    else:
+        return hash_password(getpass())
+
+
 def run():
     args = parse_args()
-    key = hash_password(getpass())
+    config = get_local_config()
+    key = get_key(config)
 
     if args.daemon:
         logger.setLevel(logging.INFO)
@@ -231,4 +238,4 @@ def run():
     else:
         logging.basicConfig(level=logging.DEBUG)
 
-    run_daemon(args, key, pipe_write if args.daemon else None)
+    run_daemon(args, config, key, pipe_write if args.daemon else None)
