@@ -3,8 +3,11 @@ import re
 from argparse import ArgumentParser
 from collections import defaultdict
 from json import loads
+from logging import INFO, getLogger
+from logging.handlers import SysLogHandler
 
 from tornado import httpserver, ioloop, web
+from tornado.log import LogFormatter
 
 from ..lib.constants import APP_ID_LEN
 from ..lib.db.syncable import Database
@@ -139,6 +142,13 @@ def run():
 
     if not os.path.isdir(args.data_dir):
         raise ValueError('"{}" is not a directory'.format(args.data_dir))
+
+    logger = getLogger('tornado.access')
+    logger.setLevel(INFO)
+    handler = SysLogHandler('/dev/log')
+    handler.setFormatter(
+        LogFormatter(color=False, fmt='{} %(message)s'.format(__name__)))
+    logger.addHandler(handler)
 
     server = httpserver.HTTPServer(make_app(args), ssl_options={
         'certfile': args.certificate,
