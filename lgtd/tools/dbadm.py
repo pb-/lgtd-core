@@ -27,6 +27,9 @@ def parse_args():
     encrypt_parser.add_argument('app_id')
     encrypt_parser.set_defaults(func=encrypt)
 
+    encrypt_parser = subparsers.add_parser('dumpkey')
+    encrypt_parser.set_defaults(func=dumpkey)
+
     return parser.parse_args()
 
 
@@ -98,6 +101,12 @@ def encrypt(args):
             stripped, args.app_id, out_offset)
         stdout.write(ciphertext)
         out_offset += len(ciphertext)
+
+
+def dumpkey(args):
+    password = getpass()
+    stdout.write(hash_password(password).encode('hex'))
+    stdout.write('\n')
 
 
 def run():
