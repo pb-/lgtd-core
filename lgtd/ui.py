@@ -321,7 +321,6 @@ def main(scr):
                     break
         if state_mgr.read_fd in selected:
             data = state_mgr.recv()
-            logging.debug('GOT MSG {}'.format(data))
             if data['msg'] == 'new_state':
                 state_mgr.request_state(
                     model_state['tags'][ui_state['active_tag']]['name'])
