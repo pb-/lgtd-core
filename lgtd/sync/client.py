@@ -92,7 +92,7 @@ def try_sync(config, db):
         start = datetime.now()
         logger.info('syncing now...')
         sync(config, db)
-    except requests.exceptions.RequestException as e:
+    except requests.exceptions.RequestException:
         logger.exception('sync failed: ')
         return False
     finally:
