@@ -1,11 +1,11 @@
 #!/bin/bash
 
-dirname=$(dirname "$0")
+cd "$(dirname "$(realpath "$0")")"
 
 pgrep -x lgtd_sync > /dev/null
 if [ $? -ne 0 ]
 then
-	"$dirname"/lgtd_sync --daemon
+	./lgtd_sync --daemon
 	if [ $? -ne 0 ]
 	then
 		echo "warning: could not start lgtd_sync"
@@ -15,7 +15,7 @@ fi
 pgrep -x lgtd_d > /dev/null
 if [ $? -ne 0 ]
 then
-	"$dirname"/lgtd_d --daemon
+	./lgtd_d --daemon
 	if [ $? -ne 0 ]
 	then
 		echo "problem starting lgtd_d, aborting"
@@ -23,4 +23,4 @@ then
 	fi
 fi
 
-exec "$dirname"/lgtd_ui
+exec ./lgtd_ui
