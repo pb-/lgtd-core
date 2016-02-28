@@ -136,7 +136,9 @@ class GTDSocketHandler(WebSocketHandler):
             self.write_message('{"msg": "bad_credentials"}')
             return
 
-        if data['msg'] == 'request_state':
+        if data['msg'] == 'auth_response':
+            self.write_message('{"msg": "authenticated"}')
+        elif data['msg'] == 'request_state':
             logger.debug('replying with state')
             state = self.state_manager.render_state(
                 data['tag'].encode('utf-8'))
