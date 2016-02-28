@@ -12,6 +12,7 @@ import pyinotify
 from tornado import ioloop, web
 from tornado.websocket import WebSocketHandler
 
+from .lib.bucket import LeakyBucket
 from .lib.commands import Command
 from .lib.crypto import CommandCipher, hash_password
 from .lib.db.client import Database
@@ -105,12 +106,13 @@ class GTDSocketHandler(WebSocketHandler):
     class AuthenticationError(Exception):
         pass
 
-    def initialize(self, config, clients, state_manager):
+    def initialize(self, config, auth_bucket, clients, state_manager):
         self.clients = clients
         self.state_manager = state_manager
         self.authenticated = False
         self.nonce = random_string(16)
         self.key = config['local_auth']
+        self.auth_bucket = auth_bucket
 
     def check_origin(self, origin):
         return True
@@ -156,10 +158,11 @@ class GTDSocketHandler(WebSocketHandler):
             return
 
         try:
+            self.auth_bucket.consume()
             expected = hmac.new(str(self.key), str(self.nonce)).digest()
             actual = data['mac'].decode('hex')
             self.authenticated = hmac.compare_digest(actual, expected)
-        except (KeyError, TypeError):
+        except (LeakyBucket.Empty, KeyError, TypeError):
             raise self.AuthenticationError
 
         if not self.authenticated:
@@ -223,10 +226,12 @@ def run_daemon(args, config, key, pipe_write):
     wm.add_watch(get_lock_file(), pyinotify.IN_CLOSE_WRITE)
 
     state_manager.notify()  # make sure initial state is prepared
+    auth_bucket = LeakyBucket(timedelta(seconds=3), 3)
 
     app = web.Application([
         (r'/gtd', GTDSocketHandler, {
             'config': config,
+            'auth_bucket': auth_bucket,
             'clients': clients,
             'state_manager': state_manager}),
     ])
