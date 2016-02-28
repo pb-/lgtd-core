@@ -1,4 +1,5 @@
 import curses
+import hmac
 import logging
 import os
 import re
@@ -14,7 +15,7 @@ from websocket import WebSocketApp
 
 from .lib import commands
 from .lib.constants import ITEM_ID_LEN
-from .lib.util import random_string
+from .lib.util import get_local_config, random_string
 
 IM_ADD = 0
 IM_EDIT = 1
@@ -33,12 +34,12 @@ class ParseError(Exception):
     pass
 
 
-class StateManagerThread(Thread):
+class StateAdapterThread(Thread):
     msg_size_len = 10
     msg_size_fmt = '{:0%d}' % msg_size_len
 
     def __init__(self):
-        super(StateManagerThread, self).__init__()
+        super(StateAdapterThread, self).__init__()
         self.daemon = True
         self.read_fd, self.write_fd = os.pipe()
 
@@ -52,6 +53,14 @@ class StateManagerThread(Thread):
     def recv(self):
         msg_size = int(os.read(self.read_fd, self.msg_size_len))
         return loads(os.read(self.read_fd, msg_size))
+
+    def authenticate(self, key, nonce):
+        logging.debug('authenticating...')
+        mac = hmac.new(str(key), str(nonce)).digest().encode('hex')
+        self.socket.send(dumps({
+            'msg': 'auth_response',
+            'mac': mac,
+        }))
 
     def request_state(self, active_tag):
         logging.debug('requesting state...')
@@ -67,8 +76,8 @@ class StateManagerThread(Thread):
             'cmds': map(str, cmds),
         }))
 
-    def _on_open(self, socket):
-        self._send('{"msg": "new_state"}')
+    # def _on_open(self, socket):
+    #     self._send('{"msg": "new_state"}')
 
     def _on_message(self, socket, message):
         self._send(message)
@@ -76,7 +85,7 @@ class StateManagerThread(Thread):
     def run(self):
         self.socket = WebSocketApp(
             'ws://127.0.0.1:9001/gtd',
-            on_open=self._on_open,
+            # on_open=self._on_open,
             on_message=self._on_message)
 
         self.socket.run_forever()
@@ -186,12 +195,12 @@ def update_scroll(ui_state, key_offset, key_active):
         ui_state[key_offset] = page * ui_state['content_height']
 
 
-def process_item_raw(state_mgr, item, query):
+def process_item_raw(state_adp, item, query):
     # first, try to interpret it as a date
     try:
         date = '${}'.format(parse_nat_date(query))
         cmd = commands.SetTagCommand(item['id'], date)
-        state_mgr.push_commands([cmd])
+        state_adp.push_commands([cmd])
     except ParseError:
         pass
 
@@ -200,10 +209,10 @@ def process_item_raw(state_mgr, item, query):
 
     # otherwise, interpret as tag
     cmd = commands.SetTagCommand(item['id'], query)
-    state_mgr.push_commands([cmd])
+    state_adp.push_commands([cmd])
 
 
-def handle_input(ch, state_mgr, model_state, ui_state):
+def handle_input(ch, state_adp, model_state, ui_state):
     if ui_state['input_mode'] is not None:
         if 32 <= ch < 256:
             ui_state['input_buffer'] += chr(ch)
@@ -223,12 +232,12 @@ def handle_input(ch, state_mgr, model_state, ui_state):
                 tag = model_state['tags'][ui_state['active_tag']]['name']
                 if tag != 'inbox':
                     set_tag = commands.SetTagCommand(set_title.item_id, tag)
-                    state_mgr.push_commands([set_title, set_tag])
+                    state_adp.push_commands([set_title, set_tag])
                 else:
-                    state_mgr.push_commands([set_title])
+                    state_adp.push_commands([set_title])
             elif im == IM_PROC:
                 item = model_state['items'][ui_state['active_item']]
-                process_item_raw(state_mgr, item, ui_state['input_buffer'])
+                process_item_raw(state_adp, item, ui_state['input_buffer'])
 
         return True
     else:
@@ -237,13 +246,13 @@ def handle_input(ch, state_mgr, model_state, ui_state):
             if ui_state['active_tag'] != active:
                 ui_state['active_item'] = 0
                 ui_state['active_tag'] = active
-                state_mgr.request_state(model_state['tags'][active]['name'])
+                state_adp.request_state(model_state['tags'][active]['name'])
         elif ch == ord('h') or ch == ord('J'):
             active = min(len(model_state['tags'])-1, ui_state['active_tag']+1)
             if ui_state['active_tag'] != active:
                 ui_state['active_item'] = 0
                 ui_state['active_tag'] = active
-                state_mgr.request_state(model_state['tags'][active]['name'])
+                state_adp.request_state(model_state['tags'][active]['name'])
         elif ch == ord('k'):
             ui_state['active_item'] = max(0, ui_state['active_item']-1)
         elif ch == ord('j'):
@@ -260,23 +269,23 @@ def handle_input(ch, state_mgr, model_state, ui_state):
         elif (ch == ord('d') or ch == ord('x')) and model_state['items']:
             item = model_state['items'][ui_state['active_item']]
             cmd = commands.DeleteItemCommand(item['id'])
-            state_mgr.push_commands([cmd])
+            state_adp.push_commands([cmd])
         elif (ch == ord('i') and ui_state['active_tag'] and
                 model_state['items']):
             item = model_state['items'][ui_state['active_item']]
             cmd = commands.UnsetTagCommand(item['id'])
-            state_mgr.push_commands([cmd])
+            state_adp.push_commands([cmd])
         elif (ch == ord('D') and
                 not model_state['tags'][ui_state['active_tag']]['count']):
             cmd = commands.DeleteTagCommand(
                 model_state['tags'][ui_state['active_tag']]['name'])
-            state_mgr.push_commands([cmd])
+            state_adp.push_commands([cmd])
         elif ord('0') <= ch <= ord('9'):
             n = (ch - ord('0') + 9) % 10
             if n < len(model_state['tags']) and n != ui_state['active_tag']:
                 ui_state['active_tag'] = n
                 ui_state['active_item'] = 0
-                state_mgr.request_state(model_state['tags'][n]['name'])
+                state_adp.request_state(model_state['tags'][n]['name'])
         else:
             return False
 
@@ -287,7 +296,7 @@ def handle_input(ch, state_mgr, model_state, ui_state):
         return True
 
 
-def main(scr):
+def main(scr, config):
     curses.use_default_colors()
     curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_BLUE)
     curses.init_pair(2, curses.COLOR_WHITE, -1)
@@ -296,8 +305,8 @@ def main(scr):
     scr.keypad(1)
     ui_state['content_height'] = content_height(scr)
 
-    state_mgr = StateManagerThread()
-    state_mgr.start()
+    state_adp = StateAdapterThread()
+    state_adp.start()
 
     model_state = {
         'tags': [{'name': 'inbox', 'count': 0}],
@@ -308,21 +317,25 @@ def main(scr):
         render(scr, model_state, ui_state)
 
         try:
-            selected, _, _ = select([sys.stdin, state_mgr.read_fd], [], [])
+            selected, _, _ = select([sys.stdin, state_adp.read_fd], [], [])
         except select_error:
             curses.resizeterm(*scr.getmaxyx())
             scr.refresh()
             selected = []
         if sys.stdin in selected:
             key = scr.getch()
-            consumed = handle_input(key, state_mgr, model_state, ui_state)
+            consumed = handle_input(key, state_adp, model_state, ui_state)
             if not consumed:
                 if key == ord('q'):
                     break
-        if state_mgr.read_fd in selected:
-            data = state_mgr.recv()
-            if data['msg'] == 'new_state':
-                state_mgr.request_state(
+        if state_adp.read_fd in selected:
+            data = state_adp.recv()
+            if data['msg'] == 'auth_challenge':
+                state_adp.authenticate(config['local_auth'], data['nonce'])
+                state_adp.request_state(
+                    model_state['tags'][ui_state['active_tag']]['name'])
+            elif data['msg'] == 'new_state':
+                state_adp.request_state(
                     model_state['tags'][ui_state['active_tag']]['name'])
             elif data['msg'] == 'state':
                 model_state = {
@@ -336,4 +349,4 @@ def run():
     logging.basicConfig(filename='/tmp/cgtd.log', level=logging.DEBUG)
     logging.debug('welcome')
     setlocale(LC_ALL, '')
-    curses.wrapper(main)
+    curses.wrapper(main, get_local_config())

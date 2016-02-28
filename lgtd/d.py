@@ -1,3 +1,4 @@
+import hmac
 import logging
 import logging.handlers
 import os
@@ -15,7 +16,7 @@ from .lib.commands import Command
 from .lib.crypto import CommandCipher, hash_password
 from .lib.db.client import Database
 from .lib.util import (ensure_data_dir, ensure_lock_file, get_data_dir,
-                       get_local_config, get_lock_file)
+                       get_local_config, get_lock_file, random_string)
 
 logger = logging.getLogger(__name__)
 STATUS_OK = '\x00'
@@ -101,20 +102,37 @@ class StateManager(object):
 
 
 class GTDSocketHandler(WebSocketHandler):
-    def initialize(self, clients, state_manager):
+    class AuthenticationError(Exception):
+        pass
+
+    def initialize(self, config, clients, state_manager):
         self.clients = clients
         self.state_manager = state_manager
+        self.authenticated = False
+        self.nonce = random_string(16)
+        self.key = config['local_auth']
 
     def check_origin(self, origin):
         return True
 
     def open(self):
         self.clients.append(self)
-        logger.debug('client connected')
+        logger.debug('client connected, sending challenge')
+        self.write_message(dumps({
+            'msg': 'auth_challenge',
+            'nonce': self.nonce,
+        }))
 
     def on_message(self, message):
         data = loads(message)
-        logger.debug('message {}'.format(data))
+        logger.debug('received message {}'.format(data))
+
+        try:
+            self.authenticate(data)
+        except self.AuthenticationError:
+            logger.debug('authentication error')
+            self.write_message('{"msg": "bad_credentials"}')
+            return
 
         if data['msg'] == 'request_state':
             logger.debug('replying with state')
@@ -125,12 +143,27 @@ class GTDSocketHandler(WebSocketHandler):
             logger.debug('pushing some commands')
             self.state_manager.push_commands(data['cmds'])
 
-    def notify(self):
-        self.write_message('{"msg": "new_state"}')
-
     def on_close(self):
         self.clients.remove(self)
         logger.debug('client disconnected')
+
+    def notify(self):
+        if self.authenticated:
+            self.write_message('{"msg": "new_state"}')
+
+    def authenticate(self, data):
+        if self.authenticated:
+            return
+
+        try:
+            expected = hmac.new(str(self.key), str(self.nonce)).digest()
+            actual = data['mac'].decode('hex')
+            self.authenticated = hmac.compare_digest(actual, expected)
+        except (KeyError, TypeError):
+            raise self.AuthenticationError
+
+        if not self.authenticated:
+            raise self.AuthenticationError
 
 
 def change_callback(notifier):
@@ -193,6 +226,7 @@ def run_daemon(args, config, key, pipe_write):
 
     app = web.Application([
         (r'/gtd', GTDSocketHandler, {
+            'config': config,
             'clients': clients,
             'state_manager': state_manager}),
     ])
