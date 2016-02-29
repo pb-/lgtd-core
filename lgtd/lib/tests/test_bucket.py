@@ -21,7 +21,7 @@ class BucketTestCase(unittest.TestCase):
         for _ in xrange(3):
             bucket.consume()
 
-        with self.assertRaises(LeakyBucket.Empty):
+        with self.assertRaises(LeakyBucket.Insufficient):
             bucket.consume()
 
     def test_simple_drop(self):
@@ -32,7 +32,7 @@ class BucketTestCase(unittest.TestCase):
         now.modify(1)
         bucket.consume()
 
-        with self.assertRaises(LeakyBucket.Empty):
+        with self.assertRaises(LeakyBucket.Insufficient):
             bucket.consume()
 
     def test_continuous(self):
@@ -43,7 +43,7 @@ class BucketTestCase(unittest.TestCase):
             now.modify(s)
             bucket.consume()
 
-            with self.assertRaises(LeakyBucket.Empty):
+            with self.assertRaises(LeakyBucket.Insufficient):
                 bucket.consume()
 
     def test_continuous_partial(self):
@@ -54,7 +54,7 @@ class BucketTestCase(unittest.TestCase):
             now.modify(s, 123456)
             bucket.consume()
 
-            with self.assertRaises(LeakyBucket.Empty):
+            with self.assertRaises(LeakyBucket.Insufficient):
                 bucket.consume()
 
     def test_long_delay(self):
@@ -67,7 +67,7 @@ class BucketTestCase(unittest.TestCase):
         bucket.consume()
         bucket.consume()
 
-        with self.assertRaises(LeakyBucket.Empty):
+        with self.assertRaises(LeakyBucket.Insufficient):
             bucket.consume()
 
     def test_long_initial_delay(self):
@@ -78,7 +78,7 @@ class BucketTestCase(unittest.TestCase):
         for _ in xrange(3):
             bucket.consume()
 
-        with self.assertRaises(LeakyBucket.Empty):
+        with self.assertRaises(LeakyBucket.Insufficient):
             bucket.consume()
 
     def test_partial(self):
@@ -87,11 +87,11 @@ class BucketTestCase(unittest.TestCase):
         bucket.consume()
 
         now.modify(0, 200000)
-        with self.assertRaises(LeakyBucket.Empty):
+        with self.assertRaises(LeakyBucket.Insufficient):
             bucket.consume()
 
         now.modify(0, 999000)
-        with self.assertRaises(LeakyBucket.Empty):
+        with self.assertRaises(LeakyBucket.Insufficient):
             bucket.consume()
 
         now.modify(1)

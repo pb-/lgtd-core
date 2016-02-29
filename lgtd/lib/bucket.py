@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 class LeakyBucket(object):
-    class Empty(Exception):
+    class Insufficient(Exception):
         pass
 
     def __init__(self, refill_interval, capacity, now_func=datetime.now):
@@ -13,17 +13,15 @@ class LeakyBucket(object):
         self.fill_level = self.capacity
         self.last_fill = self.now()
 
-    def consume(self):
+    def consume(self, amount=1):
         now = self.now()
         drops = (now - self.last_fill).total_seconds() / \
             self.refill_interval_sec
-        self.fill_level = min(self.fill_level + int(drops), self.capacity)
+        self.fill_level = min(self.fill_level + drops, self.capacity)
+        self.last_fill = now
 
-        partial_drop = drops - int(drops)
-        self.last_fill = now - timedelta(
-            seconds=partial_drop * self.refill_interval_sec)
+        remaining = self.fill_level - amount
+        if remaining < 0:
+            raise self.Insufficient
 
-        if not self.fill_level:
-            raise self.Empty
-
-        self.fill_level -= 1
+        self.fill_level = remaining

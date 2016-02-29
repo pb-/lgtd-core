@@ -164,7 +164,7 @@ class GTDSocketHandler(WebSocketHandler):
             expected = hmac.new(str(self.key), str(self.nonce)).digest()
             actual = data['mac'].decode('hex')
             self.authenticated = hmac.compare_digest(actual, expected)
-        except (LeakyBucket.Empty, KeyError, TypeError):
+        except (LeakyBucket.Insufficient, KeyError, TypeError):
             raise self.AuthenticationError
 
         if not self.authenticated:
