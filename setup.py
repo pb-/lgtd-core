@@ -9,6 +9,7 @@ setup(
     author_email='pbaecher@gmail.com',
     url='https://github.com/pb-/lgtd-suite',
     packages=find_packages('.'),
+    license='GPLv3',
     install_requires=[
         'tornado >=4.3',
     ],
