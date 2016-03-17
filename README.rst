@@ -26,7 +26,7 @@ Architecture
 
 A note on security
 ------------------
-``lgtd-site`` uses authenticated encryption (256-bit AES-GCM in counter mode) to store and transmit user data.
+``lgtd-suite`` uses authenticated encryption (256-bit AES-GCM in counter mode) to store and transmit user data.
 While this is fairly strong crypto, I urge you not to trust any cryptographic implementation until you gathered sufficient confidence in it, whatever that means to you.
 You may want to read the source, ask a friend, perform a professional audit on it, etc.
 I will not take any responsibility for any security issues you may encounter when using this software.
