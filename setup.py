@@ -2,12 +2,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='lgtd-suite',
+    name='lgtd-core',
     version='0.0.0',
-    description='Python components for lgtd',
+    description='Core components of lgtd-suite',
     author='Paul Baecher',
     author_email='pbaecher@gmail.com',
-    url='https://github.com/pb-/lgtd-suite',
+    url='https://github.com/pb-/lgtd-core',
     packages=find_packages('.'),
     license='GPLv3',
     install_requires=[
