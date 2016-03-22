@@ -16,8 +16,9 @@ from .lib.bucket import LeakyBucket
 from .lib.commands import Command
 from .lib.crypto import CommandCipher, hash_password
 from .lib.db.client import Database
-from .lib.util import (ensure_data_dir, ensure_lock_file, get_data_dir,
-                       get_local_config, get_lock_file, random_string)
+from .lib.util import (compare_digest, ensure_data_dir, ensure_lock_file,
+                       get_data_dir, get_local_config, get_lock_file,
+                       random_string)
 
 logger = logging.getLogger(__name__)
 STATUS_OK = '\x00'
@@ -163,7 +164,7 @@ class GTDSocketHandler(WebSocketHandler):
             self.auth_bucket.consume()
             expected = hmac.new(str(self.key), str(self.nonce)).digest()
             actual = data['mac'].decode('hex')
-            self.authenticated = hmac.compare_digest(actual, expected)
+            self.authenticated = compare_digest(actual, expected)
         except (LeakyBucket.Insufficient, KeyError, TypeError):
             raise self.AuthenticationError
 

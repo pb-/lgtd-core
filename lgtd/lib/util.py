@@ -1,4 +1,5 @@
 import errno
+import hmac
 import json
 import os
 import random
@@ -86,3 +87,18 @@ def get_sync_config():
         'port': 9002,
         'sync_auth': '',
     })
+
+
+def compare_digest(a, b):
+    try:
+        return hmac.compare_digest(a, b)
+    except AttributeError:
+        # compare_digest() was only added in 2.7.7
+        if len(a) != len(b):
+            return False
+
+        result = 0
+        for x, y in zip(a, b):
+            result |= ord(x) ^ ord(y)
+
+        return result == 0
