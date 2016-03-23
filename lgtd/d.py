@@ -210,6 +210,8 @@ def parse_args():
     parser.add_argument(
         '-d', '--daemon', action='store_true', help='daemonize after asking '
         'for the encryption passphrase and starting to listen')
+    parser.add_argument(
+        '-p', '--port', type=int, default=9001, help='port to listen on')
     return parser.parse_args()
 
 
@@ -238,7 +240,7 @@ def run_daemon(args, config, key, pipe_write):
             'clients': clients,
             'state_manager': state_manager}),
     ])
-    app.listen(9001, address='127.0.0.1')
+    app.listen(args.port, address='127.0.0.1')
     logger.info('listening')
 
     if pipe_write:
