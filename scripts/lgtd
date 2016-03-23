@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd "$(dirname "$(realpath "$0")")"
+cd "$(dirname "$(readlink -en "$0")")"
 
 pgrep -x lgtd_sync > /dev/null
 if [ $? -ne 0 ]
