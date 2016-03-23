@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import sys
+from argparse import ArgumentParser
 from datetime import date, timedelta
 from json import dumps, loads
 from locale import LC_ALL, setlocale
@@ -38,9 +39,10 @@ class StateAdapterThread(Thread):
     msg_size_len = 10
     msg_size_fmt = '{:0%d}' % msg_size_len
 
-    def __init__(self):
+    def __init__(self, port):
         super(StateAdapterThread, self).__init__()
         self.daemon = True
+        self.port = port
         self.read_fd, self.write_fd = os.pipe()
 
     def _send(self, msg):
@@ -84,7 +86,7 @@ class StateAdapterThread(Thread):
 
     def run(self):
         self.socket = WebSocketApp(
-            'ws://127.0.0.1:9001/gtd',
+            'ws://127.0.0.1:{}/gtd'.format(self.port),
             # on_open=self._on_open,
             on_message=self._on_message)
 
@@ -296,7 +298,7 @@ def handle_input(ch, state_adp, model_state, ui_state):
         return True
 
 
-def main(scr, config):
+def main(scr, config, args):
     curses.use_default_colors()
     curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_BLUE)
     curses.init_pair(2, curses.COLOR_WHITE, -1)
@@ -305,7 +307,7 @@ def main(scr, config):
     scr.keypad(1)
     ui_state['content_height'] = content_height(scr)
 
-    state_adp = StateAdapterThread()
+    state_adp = StateAdapterThread(args.port)
     state_adp.start()
 
     model_state = {
@@ -345,8 +347,16 @@ def main(scr, config):
                 ui_state['active_tag'] = data['state']['active_tag']
 
 
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument('--port', '-p', type=int, default=9001, help=''
+                        'port to connect to')
+
+    return parser.parse_args()
+
+
 def run():
     logging.basicConfig(filename='/tmp/cgtd.log', level=logging.DEBUG)
     logging.debug('welcome')
     setlocale(LC_ALL, '')
-    curses.wrapper(main, get_local_config())
+    curses.wrapper(main, get_local_config(), parse_args())
