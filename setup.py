@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='lgtd-core',
-    version='0.0.0',
+    version='0.0.1',
     description='Core components of lgtd-suite',
     author='Paul Baecher',
     author_email='pbaecher@gmail.com',
