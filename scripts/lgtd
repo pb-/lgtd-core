@@ -2,7 +2,7 @@
 
 cd "$(dirname "$(readlink -en "$0")")"
 
-pgrep -x lgtd_sync > /dev/null
+pgrep -x lgtd_sync -u $UID > /dev/null
 if [ $? -ne 0 ]
 then
 	./lgtd_sync --daemon
@@ -12,7 +12,7 @@ then
 	fi
 fi
 
-pgrep -x lgtd_d > /dev/null
+pgrep -x lgtd_d -u $UID > /dev/null
 if [ $? -ne 0 ]
 then
 	./lgtd_d --daemon
