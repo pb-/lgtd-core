@@ -1,7 +1,7 @@
 all: check sort test
 
 sort:
-	isort --recursive lgtd
+	isort --check-only --recursive lgtd
 
 check:
 	flake8 lgtd
