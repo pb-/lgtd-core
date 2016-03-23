@@ -18,6 +18,10 @@ This repository contains ``lgtd-core``, the core components of ``lgtd-suite``. T
  * Fully-functional offline mode
  * Several user interfaces (ncurses, `browser`__, `mobile`__)
 
+.. image:: doc/images/ui-browser.png
+.. image:: doc/images/ui-terminal.png
+.. image:: doc/images/ui-android.png
+
 Installation
 ------------
 You can install ``lgtd-core`` in two variants: one for the synchronization server only and one for the full package which includes the client-data provider and the text-mode interface.
