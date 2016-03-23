@@ -23,14 +23,12 @@ Installation
 You can install ``lgtd-core`` in two variants: one for the synchronization server only and one for the full package which includes the client-data provider and the text-mode interface.
 (The synchronization-only variant is much lighter on requirements because it will not need any crypto.)
 
-To install everything, use
+To install everything, use::
 
-::
     pip install git+git://github.com/pb-/lgtd-core#egg=lgtd-core[client]
 
-and for the synchronization-only variant
+and for the synchronization-only variant::
 
-::
     pip install git+git://github.com/pb-/lgtd-core
 
 Architecture
