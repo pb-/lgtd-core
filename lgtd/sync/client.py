@@ -11,7 +11,7 @@ import requests
 
 from ..lib.db.syncable import Database
 from ..lib.util import (ensure_lock_file, get_certificate_file, get_data_dir,
-                        get_lock_file, get_sync_config)
+                        get_lock_file, get_sync_config, daemonize)
 
 SYNC_PERIODIC_INTERVAL = timedelta(minutes=15)
 SYNC_DELAY = timedelta(seconds=10)
@@ -159,7 +159,7 @@ def run():
         pid = os.fork()
         if pid:
             return 0
-        os.setpgrp()
+        daemonize()
     else:
         logging.basicConfig(level=logging.DEBUG)
 

@@ -102,3 +102,12 @@ def compare_digest(a, b):
             result |= ord(x) ^ ord(y)
 
         return result == 0
+
+
+def daemonize():
+    os.setsid()
+    os.chdir('/')
+
+    null = open('/dev/null', 'w')
+    os.dup2(null.fileno(), 1)  # stdout
+    os.dup2(null.fileno(), 2)  # stderr

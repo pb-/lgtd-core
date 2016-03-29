@@ -18,7 +18,7 @@ from .lib.crypto import CommandCipher, hash_password
 from .lib.db.client import Database
 from .lib.util import (compare_digest, ensure_data_dir, ensure_lock_file,
                        get_data_dir, get_local_config, get_lock_file,
-                       random_string)
+                       random_string, daemonize)
 
 logger = logging.getLogger(__name__)
 STATUS_OK = '\x00'
@@ -278,7 +278,7 @@ def run():
             return 0 if status == STATUS_OK else 1
         else:
             os.close(pipe_read)
-            os.setpgrp()
+            daemonize()
     else:
         logging.basicConfig(level=logging.DEBUG)
 
