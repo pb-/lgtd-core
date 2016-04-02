@@ -29,6 +29,29 @@ ui_state = {
     'input_mode': None,
 }
 
+ESC = 27
+ENTER = 10
+
+keymap = {
+    'l': PreviousTag,
+    'K': PreviousTag,
+    'h': NextTag,
+    'J': NextTag,
+    'k': PreviousItem,
+    'j': NextItem,
+    'a': AddItem,
+    ENTER: AddItem,
+    'p': Process,
+    'd': DeleteItem,
+    'x': DeleteItem,
+    'i': MoveToInbox,
+    'D': DeleteTag,
+}
+
+keymap.update(
+    {chr(c): SelectTag for c in range(ord('0'), ord('9') + 1)}
+)
+
 
 class ParseError(Exception):
     pass
@@ -217,7 +240,7 @@ def handle_input(ch, state_adapter, model_state, ui_state):
             if ui_state['input_buffer']:
                 ui_state['input_buffer'] = ui_state['input_buffer'] \
                     .decode('utf-8')[:-1].encode('utf-8')
-        elif ch == 27 or ch == 10:
+        elif ch == ESC or ch == ENTER:
             im = ui_state['input_mode']
             ui_state['input_mode'] = None
             if ch == 27 or not ui_state['input_buffer']:
@@ -238,26 +261,9 @@ def handle_input(ch, state_adapter, model_state, ui_state):
 
         return True
     else:
-        if ch == ord('l') or ch == ord('K'):
-            PreviousTag.execute(ch, ui_state, model_state, state_adapter)
-        elif ch == ord('h') or ch == ord('J'):
-            NextTag.execute(ch, ui_state, model_state, state_adapter)
-        elif ch == ord('k'):
-            PreviousItem.execute(ch, ui_state, model_state, state_adapter)
-        elif ch == ord('j'):
-            NextItem.execute(ch, ui_state, model_state, state_adapter)
-        elif ch == ord('a') or ch == 10:
-            AddItem.execute(ch, ui_state, model_state, state_adapter)
-        elif ch == ord('p'):
-            Process.execute(ch, ui_state, model_state, state_adapter)
-        elif ch == ord('d') or ch == ord('x'):
-            DeleteItem.execute(ch, ui_state, model_state, state_adapter)
-        elif ch == ord('i'):
-            MoveToInbox.execute(ch, ui_state, model_state, state_adapter)
-        elif ch == ord('D'):
-            DeleteTag.execute(ch, ui_state, model_state, state_adapter)
-        elif ord('0') <= ch <= ord('9'):
-            SelectTag.execute(ch, ui_state, model_state, state_adapter)
+        key = ch if ch in keymap else chr(ch)
+        if key in keymap:
+            keymap[key].execute(ch, ui_state, model_state, state_adapter)
         else:
             return False
 
