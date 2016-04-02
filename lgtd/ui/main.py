@@ -14,9 +14,9 @@ from threading import Thread
 
 from websocket import WebSocketApp
 
-from .lib import commands
-from .lib.constants import ITEM_ID_LEN
-from .lib.util import get_local_config, random_string
+from ..lib import commands
+from ..lib.constants import ITEM_ID_LEN
+from ..lib.util import get_local_config, random_string
 
 IM_ADD = 0
 IM_EDIT = 1

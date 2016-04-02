@@ -26,7 +26,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'lgtd_ui = lgtd.ui:run [client]',
+            'lgtd_ui = lgtd.ui.main:run [client]',
             'lgtd_i3 = lgtd.i3:run [client]',
             'lgtd_d = lgtd.d:run [client]',
             'lgtd_sync = lgtd.sync.client:run [client]',
