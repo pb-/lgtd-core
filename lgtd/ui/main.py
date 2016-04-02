@@ -35,12 +35,12 @@ class ParseError(Exception):
     pass
 
 
-class StateAdapterThread(Thread):
+class ModelStateAdapter(Thread):
     msg_size_len = 10
     msg_size_fmt = '{:0%d}' % msg_size_len
 
     def __init__(self, port):
-        super(StateAdapterThread, self).__init__()
+        super(ModelStateAdapter, self).__init__()
         self.daemon = True
         self.port = port
         self.read_fd, self.write_fd = os.pipe()
@@ -197,12 +197,12 @@ def update_scroll(ui_state, key_offset, key_active):
         ui_state[key_offset] = page * ui_state['content_height']
 
 
-def process_item_raw(state_adp, item, query):
+def process_item_raw(state_adapter, item, query):
     # first, try to interpret it as a date
     try:
         date = '${}'.format(parse_nat_date(query))
         cmd = commands.SetTagCommand(item['id'], date)
-        state_adp.push_commands([cmd])
+        state_adapter.push_commands([cmd])
     except ParseError:
         pass
 
@@ -211,10 +211,10 @@ def process_item_raw(state_adp, item, query):
 
     # otherwise, interpret as tag
     cmd = commands.SetTagCommand(item['id'], query)
-    state_adp.push_commands([cmd])
+    state_adapter.push_commands([cmd])
 
 
-def handle_input(ch, state_adp, model_state, ui_state):
+def handle_input(ch, state_adapter, model_state, ui_state):
     if ui_state['input_mode'] is not None:
         if 32 <= ch < 256:
             ui_state['input_buffer'] += chr(ch)
@@ -234,12 +234,12 @@ def handle_input(ch, state_adp, model_state, ui_state):
                 tag = model_state['tags'][ui_state['active_tag']]['name']
                 if tag != 'inbox':
                     set_tag = commands.SetTagCommand(set_title.item_id, tag)
-                    state_adp.push_commands([set_title, set_tag])
+                    state_adapter.push_commands([set_title, set_tag])
                 else:
-                    state_adp.push_commands([set_title])
+                    state_adapter.push_commands([set_title])
             elif im == IM_PROC:
                 item = model_state['items'][ui_state['active_item']]
-                process_item_raw(state_adp, item, ui_state['input_buffer'])
+                process_item_raw(state_adapter, item, ui_state['input_buffer'])
 
         return True
     else:
@@ -248,13 +248,15 @@ def handle_input(ch, state_adp, model_state, ui_state):
             if ui_state['active_tag'] != active:
                 ui_state['active_item'] = 0
                 ui_state['active_tag'] = active
-                state_adp.request_state(model_state['tags'][active]['name'])
+                state_adapter.request_state(
+                    model_state['tags'][active]['name'])
         elif ch == ord('h') or ch == ord('J'):
             active = min(len(model_state['tags'])-1, ui_state['active_tag']+1)
             if ui_state['active_tag'] != active:
                 ui_state['active_item'] = 0
                 ui_state['active_tag'] = active
-                state_adp.request_state(model_state['tags'][active]['name'])
+                state_adapter.request_state(
+                    model_state['tags'][active]['name'])
         elif ch == ord('k'):
             ui_state['active_item'] = max(0, ui_state['active_item']-1)
         elif ch == ord('j'):
@@ -271,23 +273,23 @@ def handle_input(ch, state_adp, model_state, ui_state):
         elif (ch == ord('d') or ch == ord('x')) and model_state['items']:
             item = model_state['items'][ui_state['active_item']]
             cmd = commands.DeleteItemCommand(item['id'])
-            state_adp.push_commands([cmd])
+            state_adapter.push_commands([cmd])
         elif (ch == ord('i') and ui_state['active_tag'] and
                 model_state['items']):
             item = model_state['items'][ui_state['active_item']]
             cmd = commands.UnsetTagCommand(item['id'])
-            state_adp.push_commands([cmd])
+            state_adapter.push_commands([cmd])
         elif (ch == ord('D') and
                 not model_state['tags'][ui_state['active_tag']]['count']):
             cmd = commands.DeleteTagCommand(
                 model_state['tags'][ui_state['active_tag']]['name'])
-            state_adp.push_commands([cmd])
+            state_adapter.push_commands([cmd])
         elif ord('0') <= ch <= ord('9'):
             n = (ch - ord('0') + 9) % 10
             if n < len(model_state['tags']) and n != ui_state['active_tag']:
                 ui_state['active_tag'] = n
                 ui_state['active_item'] = 0
-                state_adp.request_state(model_state['tags'][n]['name'])
+                state_adapter.request_state(model_state['tags'][n]['name'])
         else:
             return False
 
@@ -307,8 +309,8 @@ def main(scr, config, args):
     scr.keypad(1)
     ui_state['content_height'] = content_height(scr)
 
-    state_adp = StateAdapterThread(args.port)
-    state_adp.start()
+    state_adapter = ModelStateAdapter(args.port)
+    state_adapter.start()
 
     model_state = {
         'tags': [{'name': 'inbox', 'count': 0}],
@@ -319,25 +321,25 @@ def main(scr, config, args):
         render(scr, model_state, ui_state)
 
         try:
-            selected, _, _ = select([sys.stdin, state_adp.read_fd], [], [])
+            selected, _, _ = select([sys.stdin, state_adapter.read_fd], [], [])
         except select_error:
             curses.resizeterm(*scr.getmaxyx())
             scr.refresh()
             selected = []
         if sys.stdin in selected:
             key = scr.getch()
-            consumed = handle_input(key, state_adp, model_state, ui_state)
+            consumed = handle_input(key, state_adapter, model_state, ui_state)
             if not consumed:
                 if key == ord('q'):
                     break
-        if state_adp.read_fd in selected:
-            data = state_adp.recv()
+        if state_adapter.read_fd in selected:
+            data = state_adapter.recv()
             if data['msg'] == 'auth_challenge':
-                state_adp.authenticate(config['local_auth'], data['nonce'])
-                state_adp.request_state(
+                state_adapter.authenticate(config['local_auth'], data['nonce'])
+                state_adapter.request_state(
                     model_state['tags'][ui_state['active_tag']]['name'])
             elif data['msg'] == 'new_state':
-                state_adp.request_state(
+                state_adapter.request_state(
                     model_state['tags'][ui_state['active_tag']]['name'])
             elif data['msg'] == 'state':
                 model_state = {
