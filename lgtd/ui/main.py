@@ -17,10 +17,9 @@ from websocket import WebSocketApp
 from ..lib import commands
 from ..lib.constants import ITEM_ID_LEN
 from ..lib.util import get_local_config, random_string
-
-IM_ADD = 0
-IM_EDIT = 1
-IM_PROC = 2
+from .intent import (IM_ADD, IM_PROC, AddItem, DeleteItem, DeleteTag,
+                     MoveToInbox, NextItem, NextTag, PreviousItem, PreviousTag,
+                     Process, SelectTag)
 
 ui_state = {
     'active_tag': 0,
@@ -244,52 +243,25 @@ def handle_input(ch, state_adapter, model_state, ui_state):
         return True
     else:
         if ch == ord('l') or ch == ord('K'):
-            active = max(0, ui_state['active_tag']-1)
-            if ui_state['active_tag'] != active:
-                ui_state['active_item'] = 0
-                ui_state['active_tag'] = active
-                state_adapter.request_state(
-                    model_state['tags'][active]['name'])
+            PreviousTag.execute(ch, ui_state, model_state, state_adapter)
         elif ch == ord('h') or ch == ord('J'):
-            active = min(len(model_state['tags'])-1, ui_state['active_tag']+1)
-            if ui_state['active_tag'] != active:
-                ui_state['active_item'] = 0
-                ui_state['active_tag'] = active
-                state_adapter.request_state(
-                    model_state['tags'][active]['name'])
+            NextTag.execute(ch, ui_state, model_state, state_adapter)
         elif ch == ord('k'):
-            ui_state['active_item'] = max(0, ui_state['active_item']-1)
+            PreviousItem.execute(ch, ui_state, model_state, state_adapter)
         elif ch == ord('j'):
-            ui_state['active_item'] = min(
-                len(model_state['items'])-1,
-                ui_state['active_item']+1)
+            NextItem.execute(ch, ui_state, model_state, state_adapter)
         elif ch == ord('a') or ch == 10:
-            ui_state['input_mode'] = IM_ADD
-            ui_state['input_buffer'] = ''
-        elif (ch == ord('p') and ui_state['active_tag'] == 0 and
-                model_state['tags'][0]['count']):
-            ui_state['input_mode'] = IM_PROC
-            ui_state['input_buffer'] = ''
-        elif (ch == ord('d') or ch == ord('x')) and model_state['items']:
-            item = model_state['items'][ui_state['active_item']]
-            cmd = commands.DeleteItemCommand(item['id'])
-            state_adapter.push_commands([cmd])
-        elif (ch == ord('i') and ui_state['active_tag'] and
-                model_state['items']):
-            item = model_state['items'][ui_state['active_item']]
-            cmd = commands.UnsetTagCommand(item['id'])
-            state_adapter.push_commands([cmd])
-        elif (ch == ord('D') and
-                not model_state['tags'][ui_state['active_tag']]['count']):
-            cmd = commands.DeleteTagCommand(
-                model_state['tags'][ui_state['active_tag']]['name'])
-            state_adapter.push_commands([cmd])
+            AddItem.execute(ch, ui_state, model_state, state_adapter)
+        elif ch == ord('p'):
+            Process.execute(ch, ui_state, model_state, state_adapter)
+        elif ch == ord('d') or ch == ord('x'):
+            DeleteItem.execute(ch, ui_state, model_state, state_adapter)
+        elif ch == ord('i'):
+            MoveToInbox.execute(ch, ui_state, model_state, state_adapter)
+        elif ch == ord('D'):
+            DeleteTag.execute(ch, ui_state, model_state, state_adapter)
         elif ord('0') <= ch <= ord('9'):
-            n = (ch - ord('0') + 9) % 10
-            if n < len(model_state['tags']) and n != ui_state['active_tag']:
-                ui_state['active_tag'] = n
-                ui_state['active_item'] = 0
-                state_adapter.request_state(model_state['tags'][n]['name'])
+            SelectTag.execute(ch, ui_state, model_state, state_adapter)
         else:
             return False
 
