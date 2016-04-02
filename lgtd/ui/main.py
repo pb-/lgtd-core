@@ -14,12 +14,10 @@ from threading import Thread
 
 from websocket import WebSocketApp
 
+from . import intent
 from ..lib import commands
 from ..lib.constants import ITEM_ID_LEN
 from ..lib.util import get_local_config, random_string
-from .intent import (IM_ADD, IM_PROC, AddItem, DeleteItem, DeleteTag,
-                     MoveToInbox, NextItem, NextTag, PreviousItem, PreviousTag,
-                     Process, SelectTag)
 
 ui_state = {
     'active_tag': 0,
@@ -33,23 +31,23 @@ ESC = 27
 ENTER = 10
 
 keymap = {
-    'l': PreviousTag,
-    'K': PreviousTag,
-    'h': NextTag,
-    'J': NextTag,
-    'k': PreviousItem,
-    'j': NextItem,
-    'a': AddItem,
-    ENTER: AddItem,
-    'p': Process,
-    'd': DeleteItem,
-    'x': DeleteItem,
-    'i': MoveToInbox,
-    'D': DeleteTag,
+    'l': intent.PreviousTag,
+    'K': intent.PreviousTag,
+    'h': intent.NextTag,
+    'J': intent.NextTag,
+    'k': intent.PreviousItem,
+    'j': intent.NextItem,
+    'a': intent.AddItem,
+    ENTER: intent.AddItem,
+    'p': intent.Process,
+    'd': intent.DeleteItem,
+    'x': intent.DeleteItem,
+    'i': intent.MoveToInbox,
+    'D': intent.DeleteTag,
 }
 
 keymap.update(
-    {chr(c): SelectTag for c in range(ord('0'), ord('9') + 1)}
+    {chr(c): intent.SelectTag for c in range(ord('0'), ord('9') + 1)}
 )
 
 
