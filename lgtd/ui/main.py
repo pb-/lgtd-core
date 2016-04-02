@@ -77,16 +77,12 @@ class ModelStateAdapter(Thread):
             'cmds': map(str, cmds),
         }))
 
-    # def _on_open(self, socket):
-    #     self._send('{"msg": "new_state"}')
-
     def _on_message(self, socket, message):
         self._send(message)
 
     def run(self):
         self.socket = WebSocketApp(
             'ws://127.0.0.1:{}/gtd'.format(self.port),
-            # on_open=self._on_open,
             on_message=self._on_message)
 
         self.socket.run_forever()
