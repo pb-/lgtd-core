@@ -244,7 +244,7 @@ def handle_input(ch, state_adapter, model_state, ui_state):
             if ch == 27 or not ui_state['input_buffer']:
                 return True
 
-            if im == IM_ADD:
+            if im == intent.IM_ADD:
                 set_title = commands.ItemTitleCommand(
                     random_string(ITEM_ID_LEN), ui_state['input_buffer'])
                 tag = model_state['tags'][ui_state['active_tag']]['name']
@@ -253,7 +253,7 @@ def handle_input(ch, state_adapter, model_state, ui_state):
                     state_adapter.push_commands([set_title, set_tag])
                 else:
                     state_adapter.push_commands([set_title])
-            elif im == IM_PROC:
+            elif im == intent.IM_PROC:
                 item = model_state['items'][ui_state['active_item']]
                 process_item_raw(state_adapter, item, ui_state['input_buffer'])
 
