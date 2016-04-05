@@ -259,11 +259,14 @@ def handle_input(ch, state_adapter, model_state, ui_state):
 
         return True
     else:
-        key = ch if ch in keymap else chr(ch)
-        if key in keymap:
-            keymap[key].execute(ch, ui_state, model_state, state_adapter)
-        else:
+        if not 0 <= ch <= 256:
             return False
+
+        key = ch if ch in keymap else chr(ch)
+        if key not in keymap:
+            return False
+
+        keymap[key].execute(ch, ui_state, model_state, state_adapter)
 
         # scroll to make active item visible
         update_scroll(ui_state, 'scroll_offset_items', 'active_item')
