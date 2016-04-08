@@ -19,13 +19,6 @@ from ..lib import commands
 from ..lib.constants import ITEM_ID_LEN
 from ..lib.util import get_local_config, random_string
 
-ui_state = {
-    'active_tag': 0,
-    'active_item': 0,
-    'scroll_offset_tags': 0,
-    'scroll_offset_items': 0,
-    'input_mode': None,
-}
 
 ESC = 27
 ENTER = 10
@@ -46,9 +39,9 @@ keymap = {
     'D': intent.DeleteTag,
 }
 
-keymap.update(
-    {chr(c): intent.SelectTag for c in range(ord('0'), ord('9') + 1)}
-)
+#keymap.update(
+#    {chr(c): intent.SelectTag for c in range(ord('0'), ord('9') + 1)}
+#)
 
 
 class ParseError(Exception):
@@ -59,9 +52,10 @@ class ModelStateAdapter(Thread):
     msg_size_len = 10
     msg_size_fmt = '{:0%d}' % msg_size_len
 
-    def __init__(self, port):
+    def __init__(self, key, port):
         super(ModelStateAdapter, self).__init__()
         self.daemon = True
+        self.key = key
         self.port = port
         self.read_fd, self.write_fd = os.pipe()
 
@@ -156,7 +150,7 @@ def content_height(scr):
     return ymax - 4
 
 
-def render(scr, model_state, ui_state):
+def render(scr, context):
     scr.erase()
     (y, x) = scr.getmaxyx()
     col = curses.color_pair(1)
@@ -167,23 +161,23 @@ def render(scr, model_state, ui_state):
     if height < 1:
         raise WindowTooSmallError()
 
-    for i, tag in enumerate(model_state['tags']):
-        if i < ui_state['scroll_offset_tags']:
+    for i, tag in enumerate(context.model['tags']):
+        if i < context.vars['scroll_offset_tags']:
             continue
-        ii = i - ui_state['scroll_offset_tags']
+        ii = i - context.vars['scroll_offset_tags']
         if not ii < height:
             break
 
         scr.addnstr(ii+2, 3, tag['name'].encode('utf-8'), 9)
         if tag['count']:
             scr.addstr(' ({})'.format(tag['count']))
-        if i == ui_state['active_tag']:
+        if i == context.vars['active_tag']:
             scr.addstr(ii+2, 1, '|')
 
-    for i, item in enumerate(model_state['items']):
-        if i < ui_state['scroll_offset_items']:
+    for i, item in enumerate(context.model['items']):
+        if i < context.vars['scroll_offset_items']:
             continue
-        ii = i - ui_state['scroll_offset_items']
+        ii = i - context.vars['scroll_offset_items']
         if not ii < height:
             break
 
@@ -191,14 +185,14 @@ def render(scr, model_state, ui_state):
         if 'scheduled' in item:
             scr.addstr('  [{}]'.format(
                 item['scheduled']), curses.color_pair(2))
-        if i == ui_state['active_item']:
+        if i == context.vars['active_item']:
             scr.addstr(ii+2, 18, '>')
 
-    if ui_state['input_mode'] is not None:
+    if isinstance(context.state, Input):
         curses.curs_set(1)
-        scr.addstr(y-1, 2, '> ' + ui_state['input_buffer'])
+        scr.addstr(y-1, 2, '> ' + context.state.input_buffer)
         scr.move(y-1, 4 + len(
-            ui_state['input_buffer'].decode('utf-8', 'ignore')))
+            context.state.input_buffer.decode('utf-8', 'ignore')))
     else:
         curses.curs_set(0)
 
@@ -230,49 +224,103 @@ def process_item_raw(state_adapter, item, query):
     state_adapter.push_commands([cmd])
 
 
-def handle_input(ch, state_adapter, model_state, ui_state):
-    if ui_state['input_mode'] is not None:
-        if 32 <= ch < 256:
-            ui_state['input_buffer'] += chr(ch)
-        elif ch == curses.KEY_BACKSPACE:
-            if ui_state['input_buffer']:
-                ui_state['input_buffer'] = ui_state['input_buffer'] \
-                    .decode('utf-8')[:-1].encode('utf-8')
-        elif ch == ESC or ch == ENTER:
-            im = ui_state['input_mode']
-            ui_state['input_mode'] = None
-            if ch == 27 or not ui_state['input_buffer']:
-                return True
+class Context(object):
+    def __init__(self, model, adapter):
+        self.set_state(Ready())
+        self.model = model
+        self.adapter = adapter
+        self.vars = {
+            'active_tag': 0,
+            'active_item': 0,
+            'scroll_offset_tags': 0,
+            'scroll_offset_items': 0,
+        }
 
-            if im == intent.IM_ADD:
-                set_title = commands.ItemTitleCommand(
-                    random_string(ITEM_ID_LEN), ui_state['input_buffer'])
-                tag = model_state['tags'][ui_state['active_tag']]['name']
-                if tag != 'inbox':
-                    set_tag = commands.SetTagCommand(set_title.item_id, tag)
-                    state_adapter.push_commands([set_title, set_tag])
-                else:
-                    state_adapter.push_commands([set_title])
-            elif im == intent.IM_PROC:
-                item = model_state['items'][ui_state['active_item']]
-                process_item_raw(state_adapter, item, ui_state['input_buffer'])
+    def set_state(self, state):
+        self.state = state
 
-        return True
-    else:
-        if not 0 <= ch <= 256:
+    def handle_input(self, char):
+        return self.state.handle_input(self, char)
+
+    def handle_data(self, data):
+        if data['msg'] == 'auth_challenge':
+            self.adapter.authenticate(self.adapter.key, data['nonce'])
+            self.adapter.request_state(
+                self.model['tags'][self.vars['active_tag']]['name'])
+        elif data['msg'] == 'new_state':
+            self.adapter.request_state(
+                self.model['tags'][self.vars['active_tag']]['name'])
+        elif data['msg'] == 'state':
+            self.model = {
+                'tags': data['state']['tags'],
+                'items': data['state']['items'],
+            }
+            self.vars['active_tag'] = data['state']['active_tag']
+
+
+class State(object):
+    def handle_input(self, context, char):
+        raise NotImplemented
+
+
+class Ready(State):
+    def handle_input(self, context, char):
+        if not 0 <= char <= 256:
             return False
 
-        key = ch if ch in keymap else chr(ch)
+        key = char if char in keymap else chr(char)
         if key not in keymap:
             return False
 
-        keymap[key].execute(ch, ui_state, model_state, state_adapter)
+        keymap[key].execute(context, None)
 
         # scroll to make active item visible
-        update_scroll(ui_state, 'scroll_offset_items', 'active_item')
-        update_scroll(ui_state, 'scroll_offset_tags', 'active_tag')
+        update_scroll(context.vars, 'scroll_offset_items', 'active_item')
+        update_scroll(context.vars, 'scroll_offset_tags', 'active_tag')
 
         return True
+
+
+class Input(State):
+    def __init__(self):
+        self.input_buffer = ''
+
+    def handle_input(self, context, char):
+        if 32 <= char < 256:
+            self.input_buffer += chr(char)
+        elif char == curses.KEY_BACKSPACE:
+            if self.input_buffer:
+                self.input_buffer = \
+                    self.input_buffer.decode('utf-8')[:-1].encode('utf-8')
+        elif char == ESC:
+            context.set_state(Ready())
+        elif char == ENTER:
+            if self.input_buffer:
+                self.submit(context)
+            context.set_state(Ready())
+
+        return True
+
+    def submit(self, context):
+        raise NotImplemented
+
+
+class AddStuff(Input):
+    def submit(self, context):
+        set_title = commands.ItemTitleCommand(
+            random_string(ITEM_ID_LEN), self.input_buffer)
+        tag = context.model['tags'][context.vars['active_tag']]['name']
+        if tag != 'inbox':
+            set_tag = commands.SetTagCommand(set_title.item_id, tag)
+            context.adapter.push_commands([set_title, set_tag])
+        else:
+            context.adapter.push_commands([set_title])
+
+
+class Process(Input):
+    def submit(self, context):
+        item = context.model['items'][context.vars['active_item']]
+        process_item_raw(context.adapter, item, self.input_buffer)
 
 
 def main(scr, config, args):
@@ -282,9 +330,8 @@ def main(scr, config, args):
     curses.noecho()
     curses.cbreak()
     scr.keypad(1)
-    ui_state['content_height'] = content_height(scr)
 
-    state_adapter = ModelStateAdapter(args.port)
+    state_adapter = ModelStateAdapter(config['local_auth'], args.port)
     state_adapter.start()
 
     model_state = {
@@ -292,36 +339,27 @@ def main(scr, config, args):
         'items': [],
     }
 
+    context = Context(model_state, state_adapter)
+    context.vars['content_height'] = content_height(scr)
+
     while True:
-        render(scr, model_state, ui_state)
+        render(scr, context)
 
         try:
-            selected, _, _ = select([sys.stdin, state_adapter.read_fd], [], [])
+            selected, _, _ = select(
+                [sys.stdin, context.adapter.read_fd], [], [])
         except select_error:
             curses.resizeterm(*scr.getmaxyx())
             scr.refresh()
             selected = []
         if sys.stdin in selected:
             key = scr.getch()
-            consumed = handle_input(key, state_adapter, model_state, ui_state)
+            consumed = context.handle_input(key)
             if not consumed:
                 if key == ord('q'):
                     break
-        if state_adapter.read_fd in selected:
-            data = state_adapter.recv()
-            if data['msg'] == 'auth_challenge':
-                state_adapter.authenticate(config['local_auth'], data['nonce'])
-                state_adapter.request_state(
-                    model_state['tags'][ui_state['active_tag']]['name'])
-            elif data['msg'] == 'new_state':
-                state_adapter.request_state(
-                    model_state['tags'][ui_state['active_tag']]['name'])
-            elif data['msg'] == 'state':
-                model_state = {
-                    'tags': data['state']['tags'],
-                    'items': data['state']['items'],
-                }
-                ui_state['active_tag'] = data['state']['active_tag']
+        if context.adapter.read_fd in selected:
+            context.handle_data(context.adapter.recv())
 
 
 def parse_args():
