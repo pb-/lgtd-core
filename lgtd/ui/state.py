@@ -1,6 +1,6 @@
 from curses import KEY_BACKSPACE
 
-from .intent import keymap
+from . import intent
 from ..lib import commands
 from ..lib.constants import ITEM_ID_LEN, KEY_ENTER, KEY_ESC
 from ..lib.util import random_string, ParseError, parse_natural_date
@@ -62,7 +62,8 @@ class Ready(State):
         if key not in keymap:
             return False
 
-        keymap[key].execute(context, None)
+        intent, arg = keymap[key]
+        intent.execute(context, arg)
 
         # scroll to make active item visible
         self.update_scroll(context, 'scroll_offset_items', 'active_item')
@@ -137,3 +138,23 @@ class Process(Input):
         # otherwise, interpret as tag
         cmd = commands.SetTagCommand(item['id'], query)
         adapter.push_commands([cmd])
+
+
+keymap = {
+    'l': (intent.PreviousTag, None),
+    'K': (intent.PreviousTag, None),
+    'h': (intent.NextTag, None),
+    'J': (intent.NextTag, None),
+    'k': (intent.PreviousItem, None),
+    'j': (intent.NextItem, None),
+    'a': (intent.AddItem, AddStuff),
+    KEY_ENTER: (intent.AddItem, None),
+    'p': (intent.Process, Process),
+    'd': (intent.DeleteItem, None),
+    'x': (intent.DeleteItem, None),
+    'i': (intent.MoveToInbox, None),
+    'D': (intent.DeleteTag, None),
+}
+
+keymap.update({
+    chr(ord('0') + num): (intent.SelectTag, num) for num in xrange(0, 10)})

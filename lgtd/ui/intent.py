@@ -1,5 +1,4 @@
 from ..lib import commands
-from ..lib.constants import KEY_ENTER
 
 
 class Intent(object):
@@ -60,8 +59,7 @@ class AddItem(Intent):
 
     @staticmethod
     def execute(context, arg):
-        from . import state
-        context.set_state(state.AddStuff())
+        context.set_state(arg())
 
 
 class Process(Intent):
@@ -71,8 +69,7 @@ class Process(Intent):
     def execute(context, arg):
         if context.vars['active_tag'] == 0 and \
                 context.model['tags'][0]['count']:
-            from . import state
-            context.set_state(state.Process())
+            context.set_state(arg())
 
 
 class DeleteItem(Intent):
@@ -108,18 +105,12 @@ class DeleteTag(Intent):
             context.adapter.push_commands([cmd])
 
 
-keymap = {
-    'l': PreviousTag,
-    'K': PreviousTag,
-    'h': NextTag,
-    'J': NextTag,
-    'k': PreviousItem,
-    'j': NextItem,
-    'a': AddItem,
-    KEY_ENTER: AddItem,
-    'p': Process,
-    'd': DeleteItem,
-    'x': DeleteItem,
-    'i': MoveToInbox,
-    'D': DeleteTag,
-}
+class SelectTag(Intent):
+    help_text = 'Select tag #'
+
+    @staticmethod
+    def execute(context, n):
+        if n < len(context.model['tags']) and n != context.vars['active_tag']:
+            context.vars['active_tag'] = n
+            context.vars['active_item'] = 0
+            context.adapter.request_state(context.model['tags'][n]['name'])
