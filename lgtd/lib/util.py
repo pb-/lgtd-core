@@ -3,9 +3,15 @@ import hmac
 import json
 import os
 import random
+import re
+from datetime import date, timedelta
 from stat import S_IRUSR, S_IWUSR
 
 from .constants import APP_ID_LEN, LOCAL_AUTH_LEN
+
+
+class ParseError(Exception):
+    pass
 
 
 def get_lgtd_dir():
@@ -111,3 +117,40 @@ def daemonize():
     null = open('/dev/null', 'w')
     os.dup2(null.fileno(), 1)  # stdout
     os.dup2(null.fileno(), 2)  # stderr
+
+
+def parse_natural_date(s):
+    months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun'
+              'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+    t = re.compile('(in (\\d+)([dwmy])|on (mon|tue|wed|thu|fri|sat|sun|({}) '
+                   '(\\d+)))'.format('|'.join(months)))
+    m = t.match(s)
+    if not m:
+        raise ParseError("I do not understand that date format")
+
+    tt = date.today()
+
+    if m.group(1) and m.group(2):
+        # in ...
+        amt = int(m.group(2))
+        u = m.group(3)
+        if u == 'w':
+            amt *= 7
+        elif u == 'm':
+            amt *= 30
+        elif u == 'y':
+            amt *= 365
+
+        tt += timedelta(days=amt)
+    elif m.group(5) and m.group(6):
+        tt = tt.replace(month=months.index(m.group(5))+1, day=int(m.group(6)))
+        if tt <= date.today():
+            y = tt.year + 1
+            tt = tt.replace(year=y)
+    else:
+        tt += timedelta(days=1)
+        # this will livelock with the wrong locale.
+        while tt.strftime('%a').lower() != m.group(4):
+            tt += timedelta(days=1)
+
+    return tt
