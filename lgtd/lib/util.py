@@ -114,7 +114,7 @@ def daemonize():
     os.setsid()
     os.chdir('/')
 
-    null = open('/dev/null', 'w')
+    null = open(os.devnull, 'w')
     os.dup2(null.fileno(), 1)  # stdout
     os.dup2(null.fileno(), 2)  # stderr
 
