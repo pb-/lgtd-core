@@ -12,8 +12,8 @@ from threading import Thread
 
 from websocket import WebSocketApp
 
-from .state import Context, Input, Help, keymap
 from ..lib.util import get_local_config
+from .state import Context, Help, Input, keymap
 
 
 class ModelStateAdapter(Thread):

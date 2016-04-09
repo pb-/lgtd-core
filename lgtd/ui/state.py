@@ -3,7 +3,7 @@ from curses import KEY_BACKSPACE
 from . import intent
 from ..lib import commands
 from ..lib.constants import ITEM_ID_LEN, KEY_ENTER, KEY_ESC
-from ..lib.util import random_string, ParseError, parse_natural_date
+from ..lib.util import ParseError, parse_natural_date, random_string
 
 
 def update_scroll(ui_state, key_offset, key_active):

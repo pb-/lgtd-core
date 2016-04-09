@@ -16,9 +16,9 @@ from .lib.bucket import LeakyBucket
 from .lib.commands import Command
 from .lib.crypto import CommandCipher, hash_password
 from .lib.db.client import Database
-from .lib.util import (compare_digest, ensure_data_dir, ensure_lock_file,
-                       get_data_dir, get_local_config, get_lock_file,
-                       random_string, daemonize)
+from .lib.util import (compare_digest, daemonize, ensure_data_dir,
+                       ensure_lock_file, get_data_dir, get_local_config,
+                       get_lock_file, random_string)
 
 logger = logging.getLogger(__name__)
 STATUS_OK = '\x00'
