@@ -81,6 +81,12 @@ class Ready(State):
             context.vars[key_offset] = page * context.vars['content_height']
 
 
+class Help(State):
+    def handle_input(self, context, _):
+        context.set_state(Ready())
+        return True
+
+
 class Input(State):
     def __init__(self):
         self.input_buffer = ''
@@ -148,12 +154,13 @@ keymap = {
     'k': (intent.PreviousItem, None),
     'j': (intent.NextItem, None),
     'a': (intent.AddItem, AddStuff),
-    KEY_ENTER: (intent.AddItem, None),
+    KEY_ENTER: (intent.AddItem, AddStuff),
     'p': (intent.Process, Process),
     'd': (intent.DeleteItem, None),
     'x': (intent.DeleteItem, None),
     'i': (intent.MoveToInbox, None),
     'D': (intent.DeleteTag, None),
+    '?': (intent.Help, Help),
 }
 
 keymap.update({

@@ -12,7 +12,7 @@ from threading import Thread
 
 from websocket import WebSocketApp
 
-from .state import Context, Input
+from .state import Context, Input, Help, keymap
 from ..lib.util import get_local_config
 
 
@@ -81,17 +81,8 @@ def content_height(scr):
     return ymax - 4
 
 
-def render(scr, context):
-    scr.erase()
-    (y, x) = scr.getmaxyx()
-    col = curses.color_pair(1)
-    scr.addstr(0, 0, ' ' * x, col)
-    scr.addstr(0, 2, 'GTD', col)
-
+def render_tags(scr, context):
     height = content_height(scr)
-    if height < 1:
-        raise WindowTooSmallError()
-
     for i, tag in enumerate(context.model['tags']):
         if i < context.vars['scroll_offset_tags']:
             continue
@@ -105,6 +96,9 @@ def render(scr, context):
         if i == context.vars['active_tag']:
             scr.addstr(ii+2, 1, '|')
 
+
+def render_items(scr, context):
+    height = content_height(scr)
     for i, item in enumerate(context.model['items']):
         if i < context.vars['scroll_offset_items']:
             continue
@@ -118,6 +112,31 @@ def render(scr, context):
                 item['scheduled']), curses.color_pair(2))
         if i == context.vars['active_item']:
             scr.addstr(ii+2, 18, '>')
+
+
+def render_help(scr, context):
+    for i, key in enumerate(sorted(keymap.keys())):
+        if isinstance(key, basestring):
+            scr.addstr(i + 2, 4, key.encode('utf-8'))
+            scr.addstr(i + 2, 10, keymap[key][0].help_text)
+
+
+def render(scr, context):
+    scr.erase()
+    (y, x) = scr.getmaxyx()
+    col = curses.color_pair(1)
+    scr.addstr(0, 0, ' ' * x, col)
+    scr.addstr(0, 2, 'GTD', col)
+
+    height = content_height(scr)
+    if height < 1:
+        raise WindowTooSmallError()
+
+    if isinstance(context.state, Help):
+        render_help(scr, context)
+    else:
+        render_tags(scr, context)
+        render_items(scr, context)
 
     if isinstance(context.state, Input):
         curses.curs_set(1)

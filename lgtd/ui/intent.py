@@ -114,3 +114,11 @@ class SelectTag(Intent):
             context.vars['active_tag'] = n
             context.vars['active_item'] = 0
             context.adapter.request_state(context.model['tags'][n]['name'])
+
+
+class Help(Intent):
+    help_text = 'Show help'
+
+    @staticmethod
+    def execute(context, arg):
+        context.set_state(arg())
