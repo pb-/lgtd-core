@@ -5,6 +5,7 @@ import os
 import random
 import re
 from datetime import date, timedelta
+from difflib import SequenceMatcher
 from stat import S_IRUSR, S_IWUSR
 
 from .constants import APP_ID_LEN, LOCAL_AUTH_LEN
@@ -154,3 +155,49 @@ def parse_natural_date(s):
             tt += timedelta(days=1)
 
     return tt
+
+
+def diff_order(a, b):
+    """
+    For two permutations a and b, compute a diff (delta) that turns a into b.
+    """
+    if None in list(a):
+        raise ValueError('sequence must not contain None')
+    elif len(a) != len(b) or set(a) != set(b):
+        raise ValueError('"a" is not a permutation of "b"')
+
+    return [
+        [None if start == 0 else b[start - 1]] + list(b[start:end])
+        for tag, _, _, start, end in SequenceMatcher(None, a, b).get_opcodes()
+        if tag in ('insert', 'replace')
+    ]
+
+
+def patch_order(items, diffs):
+    """
+    Apply a diff that was created with diff_order(). For any elements in the
+    diff that are not present in items, fail gracefully and do not add them to
+    items. In other words, maintain the invariant that whatever is returned
+    is a permutation of items, no matter what the diff is.
+    """
+    if None in list(items):
+        raise ValueError('items must not contain None')
+
+    reordered = [None] + list(items)
+    for diff in diffs:
+        if len(diff) != len(set(diff)):
+            raise ValueError('malformed diff')
+
+        diff = [x for i, x in enumerate(diff)
+                if x in reordered and (not i or x)]
+        if diff:
+            anchor, seq = diff[0], diff[1:]
+            offset = reordered.index(anchor)
+
+            reordered = [
+                x for x in reordered[:offset + 1] if x not in seq
+            ] + seq + [
+                x for x in reordered[offset + 1:] if x not in seq
+            ]
+
+    return reordered[1:]
