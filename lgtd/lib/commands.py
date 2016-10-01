@@ -1,4 +1,7 @@
+from collections import OrderedDict
 from itertools import chain
+
+from .util import patch_order
 
 
 class CommandRegistry(object):
@@ -57,6 +60,44 @@ class Command(object):
 
     def apply(self, state):
         raise NotImplemented
+
+
+@CommandRegistry.register
+class OrderItemsCommand(Command):
+    mnemonic = 'O'
+
+    def __init__(self, *diffs):
+        self.diffs = diffs
+
+    def __str__(self):
+        return self.mnemonic + ' ' + ' '.join(
+            ','.join(num or '^' for num in diff)
+            for diff in self.diffs
+        )
+
+    def __eq__(self, other):
+        return self.mnemonic == other.mnemonic and self.diffs == other.diffs
+
+    @classmethod
+    def parse_args(cls, string):
+        parts = string.split(' ')
+        if len(parts) < 1:
+            raise ValueError('Cannot parse: {}'.format(string))
+
+        diffs = [
+            [None if num == '^' else num for num in word.split(',')]
+            for word in parts
+        ]
+
+        return cls(*diffs)
+
+    def apply(self, state):
+        old_items = state['items']
+        nums = patch_order(old_items.keys(), self.diffs)
+
+        state['items'] = OrderedDict()
+        for num in nums:
+            state['items'][num] = old_items[num]
 
 
 @CommandRegistry.register

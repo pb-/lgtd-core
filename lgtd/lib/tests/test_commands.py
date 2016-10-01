@@ -2,8 +2,8 @@ import unittest
 from collections import OrderedDict
 
 from ..commands import (Command, DeleteItemCommand, DeleteTagCommand,
-                        ItemTitleCommand, OrderTagCommand, SetTagCommand,
-                        UnsetTagCommand)
+                        ItemTitleCommand, OrderItemsCommand, OrderTagCommand,
+                        SetTagCommand, UnsetTagCommand)
 
 
 class CommandsTestCase(unittest.TestCase):
@@ -128,3 +128,54 @@ class CommandsTestCase(unittest.TestCase):
         DeleteTagCommand('inbox').apply(state)  # not deletable
         DeleteTagCommand('tickler').apply(state)  # not deletable
         self.assertEqual(state, self.get_special_state())
+
+    def test_order_items_encoding(self):
+        diffs = [[None, '000'], ['001', '002', '003']]
+        command = OrderItemsCommand(*diffs)
+        encoded = str(command)
+        self.assertEqual(encoded, 'O ^,000 001,002,003')
+        decoded = Command.parse(encoded)
+        self.assertEqual(decoded, command)
+
+    def test_order_items_application(self):
+        def get_state():
+            return {
+                'tag_order': ['one', 'two'],
+                'items': OrderedDict([
+                    ('i00', {'title': 'i0', 'tag': 'one'}),
+                    ('i01', {'title': 'i1', 'tag': 'one'}),
+                    ('i02', {'title': 'i2', 'tag': 'two'}),
+                    ('i03', {'title': 'i3', 'tag': 'one'}),
+                    ('i04', {'title': 'i4', 'tag': 'one'}),
+                ]),
+            }
+
+        state = get_state()
+        OrderItemsCommand([None, 'i99']).apply(state)
+        self.assertEqual(state, get_state())
+
+        state = get_state()
+        OrderItemsCommand([None, 'i04']).apply(state)
+        self.assertEqual(state, {
+            'tag_order': ['one', 'two'],
+            'items': OrderedDict([
+                ('i04', {'title': 'i4', 'tag': 'one'}),
+                ('i00', {'title': 'i0', 'tag': 'one'}),
+                ('i01', {'title': 'i1', 'tag': 'one'}),
+                ('i02', {'title': 'i2', 'tag': 'two'}),
+                ('i03', {'title': 'i3', 'tag': 'one'}),
+            ]),
+        })
+
+        state = get_state()
+        OrderItemsCommand(['i02', 'i00', 'i01']).apply(state)
+        self.assertEqual(state, {
+            'tag_order': ['one', 'two'],
+            'items': OrderedDict([
+                ('i02', {'title': 'i2', 'tag': 'two'}),
+                ('i00', {'title': 'i0', 'tag': 'one'}),
+                ('i01', {'title': 'i1', 'tag': 'one'}),
+                ('i03', {'title': 'i3', 'tag': 'one'}),
+                ('i04', {'title': 'i4', 'tag': 'one'}),
+            ]),
+        })
