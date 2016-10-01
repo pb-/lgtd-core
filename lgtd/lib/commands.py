@@ -38,18 +38,22 @@ class Command(object):
 
         return True
 
-    @staticmethod
-    def parse(string):
-        mnemonic = string[0]
-        command_class = CommandRegistry.commands[mnemonic]
-        parts = string.split(' ', len(command_class.args))
+    @classmethod
+    def parse_args(cls, string):
+        parts = string.split(' ', len(cls.args) - 1)
 
-        if len(parts) < 1 + len(command_class.args):
+        if len(parts) < len(cls.args):
             raise ValueError(
-                'Not enough arguments to parse command: "{}"'.format(string)
+                'Not enough arguments to parse args: "{}"'.format(string)
             )
 
-        return command_class(*parts[1:])
+        return cls(*parts)
+
+    @staticmethod
+    def parse(string):
+        mnemonic, args = string.split(' ', 1)
+        command_class = CommandRegistry.commands[mnemonic]
+        return command_class.parse_args(args)
 
     def apply(self, state):
         raise NotImplemented
