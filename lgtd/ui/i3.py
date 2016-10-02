@@ -4,7 +4,7 @@ from json import loads
 
 from websocket import create_connection
 
-from .lib.util import get_local_config
+from ..lib.util import get_local_config
 
 
 def authenticate(ws, config):

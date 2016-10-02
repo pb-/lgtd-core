@@ -12,7 +12,7 @@ from threading import Thread
 
 from websocket import WebSocketApp
 
-from ..lib.util import get_local_config
+from ...lib.util import get_local_config
 from .state import Context, Help, Input, keymap
 
 

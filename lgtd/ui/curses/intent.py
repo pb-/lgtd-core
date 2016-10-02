@@ -1,4 +1,4 @@
-from ..lib import commands
+from ...lib import commands
 
 
 class Intent(object):

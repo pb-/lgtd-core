@@ -4,11 +4,11 @@ from datetime import date, datetime
 
 from mock import patch
 
-from ..d import StateManager, delta_to_midnight
+from ..daemon import StateManager, delta_to_midnight
 
 
 class DaemonTestCase(unittest.TestCase):
-    @patch('lgtd.d.date')
+    @patch('lgtd.provider.daemon.date')
     def test_state_mgr_render(self, mock_date):
         setattr(mock_date, 'today', lambda: date(2015, 12, 3))
 
@@ -41,7 +41,7 @@ class DaemonTestCase(unittest.TestCase):
 
         self.assertEqual(sm.render_state('inbox'), expected)
 
-    @patch('lgtd.d.datetime')
+    @patch('lgtd.provider.daemon.datetime')
     def test_midnight(self, mock_datetime):
         def now():
             return datetime(2016, 1, 31, 16, 48, 1, 49929)
