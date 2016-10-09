@@ -102,8 +102,9 @@ def render(item, colorizer=shell_color):
         BLOCKED: 'red',
     }.get(item['status'], 'gray')
 
-    return '{} {} {}'.format(
-        colorizer('gray', '#{}'.format(item['n'])),
-        colorizer(color, item['status']),
-        colorizer('white', item['title'])
+    return ' '.join(
+        (colorizer('gray', '#{}'.format(item['n'])),
+            colorizer(color, item['status'])) +
+        ('[{}]'.format(item['dt'], ) if item['dt'] is not None else ()) +
+        (colorizer('white', item['title']), )
     )
