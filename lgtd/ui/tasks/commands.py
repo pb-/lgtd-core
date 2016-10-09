@@ -117,5 +117,25 @@ def clear(state, _):
     return state, None, None
 
 
+@register
+@positional('num', type_=int, required=False)
+def edit(state, args):
+    """Change the title of an item."""
+    item = items.find(state['items'], args['num'] or state['selected'])
+    path = os.path.join('/tmp', 'tasks.{}.edit'.format(os.getpid()))
+
+    open(path, 'w').write(item['title'])
+    os.system('editor {}'.format(path))
+    title = open(path).read().strip()
+    os.remove(path)
+
+    if title:
+        encoded = items.encode_title(dict(item.items() + [('title', title)]))
+        set_title = commands.ItemTitleCommand(item['id'], encoded)
+        return state, [str(set_title)], None
+    else:
+        return state, None, 'Rejecting edit: title is empty'
+
+
 def unknown_command(state, _):
     return state, None, 'Unknown command'
