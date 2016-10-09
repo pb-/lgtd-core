@@ -9,7 +9,8 @@ from .parser import ParseError, option, parse_args, positional, remainder
 
 def dispatch(state, line):
     parts = line.split(' ')
-    command = dispatch.commands.get(parts[0], unknown_command)
+    cmd = dispatch.aliases.get(parts[0])
+    command = dispatch.commands.get(cmd or parts[0], unknown_command)
     try:
         args = parse_args(parts[1:], command.arguments)
     except AttributeError:
@@ -18,6 +19,17 @@ def dispatch(state, line):
         return state, None, str(e)
 
     return command(state, args)
+
+
+def alias(*aliases):
+    def wrapper(f):
+        for a in aliases:
+            dispatch.aliases[a] = f.__name__
+        return f
+
+    if not hasattr(dispatch, 'aliases'):
+        dispatch.aliases = {}
+    return wrapper
 
 
 def register(f):
@@ -32,21 +44,25 @@ def list_items(state, items_):
 
 
 @register
+@alias('ls', 'list')
 def all(state, _):
     return list_items(state, items.iter_all(state['items']))
 
 
 @register
+@alias('bl')
 def backlog(state, _):
     return list_items(state, items.iter_backlog(state['items']))
 
 
 @register
+@alias('su')
 def standup(state, _):
     return list_items(state, items.iter_standup(state['items']))
 
 
 @register
+@alias('s')
 def status(state, _):
     item = items.find(state['items'], state['selected'])
     return state, None, 'Currently on ' + items.render(item)
