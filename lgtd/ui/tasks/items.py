@@ -10,6 +10,34 @@ IN_PROGRESS = 'in-progress'
 TODO = 'todo'
 
 
+def iter_status(items, status):
+    return (item for item in items if item['status'] == status)
+
+
+def iter_backlog(tasks):
+    return chain(
+        iter_status(tasks, IN_PROGRESS),
+        iter_status(tasks, TODO),
+    )
+
+
+def iter_all(tasks):
+    return chain(
+        iter_backlog(tasks),
+        iter_status(tasks, BLOCKED),
+        iter_status(tasks, DONE),
+        iter_status(tasks, DELETED),
+    )
+
+
+def iter_standup(tasks):
+    return chain(
+        reversed(list(iter_status(tasks, DONE))),
+        iter_backlog(tasks),
+        iter_status(tasks, BLOCKED),
+    )
+
+
 def greatest(items):
     return max(chain((0, ), (
             item['n'] for item in items if item['n'] is not None
@@ -39,8 +67,7 @@ def encode_title(item):
 
 def select_next(items):
     try:
-        return next(item for item in items
-                    if item['status'] in (TODO, IN_PROGRESS))['n']
+        return next(iter_backlog(items))['n']
     except StopIteration:
         return None
 

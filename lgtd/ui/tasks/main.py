@@ -37,7 +37,8 @@ def get_items(read_fn, write_fn, status):
 
 
 def get_state(read_fn, write_fn):
-    status = (items.TODO, items.IN_PROGRESS)
+    status = (items.TODO, items.IN_PROGRESS, items.DONE, items.BLOCKED,
+              items.DELETED)
     return reduce(add, map(partial(get_items, read_fn, write_fn), status))
 
 
@@ -55,6 +56,9 @@ try:
         state['items'] = get_state(ws.recv, ws.send)
         if not state['selected']:
             state['selected'] = items.select_next(state['items'])
+            if state['selected']:
+                print('Now on ' + items.render(items.find(
+                    state['items'], state['selected'])))
         if state['selected']:
             sys.stdout.write('#{}'.format(state['selected']))
         sys.stdout.write('> ')

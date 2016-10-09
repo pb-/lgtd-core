@@ -1,3 +1,5 @@
+import os
+
 from . import items
 from ...lib import commands
 from ...lib.constants import ITEM_ID_LEN
@@ -25,10 +27,29 @@ def register(f):
     return f
 
 
+def list_items(state, items_):
+    return state, None, '\n'.join(items.render(item) for item in items_)
+
+
 @register
 def all(state, _):
-    return state, None, '\n'.join(
-        items.render(item) for item in state['items'])
+    return list_items(state, items.iter_all(state['items']))
+
+
+@register
+def backlog(state, _):
+    return list_items(state, items.iter_backlog(state['items']))
+
+
+@register
+def standup(state, _):
+    return list_items(state, items.iter_standup(state['items']))
+
+
+@register
+def status(state, _):
+    item = items.find(state['items'], state['selected'])
+    return state, None, 'Currently on ' + items.render(item)
 
 
 @register
@@ -64,8 +85,36 @@ def _set_status(state, status, num):
 @register
 @positional('num', type_=int, required=False)
 def start(state, args):
-    """Start working on a task (mark as in-progress)"""
+    """Start working on a task (mark as in-progress)."""
     return _set_status(state, items.IN_PROGRESS, args['num'])
+
+
+@register
+@positional('num', type_=int, required=False)
+def done(state, args):
+    """Complete a task (mark as done)."""
+    return _set_status(state, items.DONE, args['num'])
+
+
+@register
+@positional('num', type_=int, required=False)
+def block(state, args):
+    """Mark a task as blocked."""
+    return _set_status(state, items.BLOCKED, args['num'])
+
+
+@register
+@positional('num', type_=int, required=False)
+def delete(state, args):
+    """Delete a task (mark as deleted)."""
+    return _set_status(state, items.DELETED, args['num'])
+
+
+@register
+def clear(state, _):
+    """Clear screen."""
+    os.system('clear')
+    return state, None, None
 
 
 def unknown_command(state, _):
