@@ -59,8 +59,8 @@ def decode_title(title):
 
 def encode_title(item):
     return ' '.join(
-        ('#{} '.format(item['n']), ) if item['n'] is not None else () +
-        ('[{}] '.format(item['dt']), ) if item['dt'] is not None else () +
+        (('#{}'.format(item['n']), ) if item['n'] is not None else ()) +
+        (('[{}]'.format(item['dt']), ) if item['dt'] is not None else ()) +
         (item['title'], )
     )
 
