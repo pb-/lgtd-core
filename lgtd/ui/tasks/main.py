@@ -67,22 +67,27 @@ def run():
                 sys.stdout.write('#{}'.format(state['selected']))
             sys.stdout.write('> ')
             sys.stdout.flush()
-            read_fds, _, _ = select([sys.stdin, ws.sock], [], [])
+            retry = True
 
-            if sys.stdin in read_fds:
-                user_in = sys.stdin.readline()
-                if not user_in:
-                    sys.stdout.write('\n')
-                    break
-                elif user_in.strip():
-                    state, network, stdout = commands.dispatch(
-                        state, user_in.strip())
-                    if network:
-                        ws.send(dumps(push_commands(network)))
-                        ws.recv()
-                    if stdout:
-                        print(stdout)
-            if ws.sock in read_fds:
-                ws.recv()  # unsolicited new state
+            while retry:
+                retry = False
+                read_fds, _, _ = select([sys.stdin, ws.sock], [], [])
+
+                if sys.stdin in read_fds:
+                    user_in = sys.stdin.readline()
+                    if not user_in:
+                        sys.stdout.write('\n')
+                        return
+                    elif user_in.strip():
+                        state, network, stdout = commands.dispatch(
+                            state, user_in.strip())
+                        if network:
+                            ws.send(dumps(push_commands(network)))
+                            ws.recv()
+                        if stdout:
+                            print(stdout)
+                if ws.sock in read_fds:
+                    ws.recv()  # unsolicited new state
+                    retry = True
     finally:
         ws.close()
