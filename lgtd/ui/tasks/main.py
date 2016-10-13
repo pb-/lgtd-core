@@ -52,6 +52,9 @@ authenticate(ws.recv, ws.send, get_local_config()['local_auth'])
 state = dict(items=[], selected=None)
 
 try:
+    print('Welcome to tasks')
+    print('Type "help" for help, use CTRL-D to exit')
+    print('')
     while True:
         state['items'] = get_state(ws.recv, ws.send)
         if not state['selected']:
