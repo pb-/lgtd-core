@@ -111,4 +111,10 @@ def render(item, colorizer=shell_color):
 
 
 def render_list(items, colorizer=shell_color):
-    return '\n'.join(render(item, colorizer) for item in items)
+    items = list(items)
+    max_len = len(str(greatest(items)))
+
+    return '\n'.join(
+        ' ' * (max_len - len(str(item['n']))) +
+        render(item, colorizer) for item in items
+    )
