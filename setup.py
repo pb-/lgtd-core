@@ -27,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'lgtd_ui = lgtd.ui.curses.main:run [client]',
+            'lgtd_tasks = lgtd.ui.tasks.main:run [client]',
             'lgtd_i3 = lgtd.ui.i3:run [client]',
             'lgtd_d = lgtd.provider.daemon:run [client]',
             'lgtd_sync = lgtd.sync.client:run [client]',
