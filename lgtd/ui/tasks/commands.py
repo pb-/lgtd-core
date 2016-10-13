@@ -1,5 +1,6 @@
 import os
 import re
+from collections import OrderedDict
 
 from . import items
 from ...lib import commands
@@ -29,13 +30,13 @@ def alias(*aliases):
         return f
 
     if not hasattr(dispatch, 'aliases'):
-        dispatch.aliases = {}
+        dispatch.aliases = OrderedDict()
     return wrapper
 
 
 def register(f):
     if not hasattr(dispatch, 'commands'):
-        dispatch.commands = {}
+        dispatch.commands = OrderedDict()
     dispatch.commands[f.__name__] = f
     return f
 
@@ -45,35 +46,11 @@ def list_items(state, items_):
 
 
 @register
-@alias('ls', 'list')
-def all(state, _):
-    return list_items(state, items.iter_all(state['items']))
-
-
-@register
-@alias('bl')
-def backlog(state, _):
-    return list_items(state, items.iter_backlog(state['items']))
-
-
-@register
-@alias('su')
-def standup(state, _):
-    return list_items(state, items.iter_standup(state['items']))
-
-
-@register
-@alias('s')
-def status(state, _):
-    item = items.find(state['items'], state['selected'])
-    return state, None, 'Currently on ' + items.render(item)
-
-
-@register
 @option('--start', '-s')
 @option('--done', '-d')
 @remainder('title')
 def add(state, args):
+    """Add a new to do item."""
     title = '#{} {}'.format(items.greatest(state['items']) + 1, args['title'])
 
     if args['start']:
@@ -88,15 +65,6 @@ def add(state, args):
     set_title = commands.ItemTitleCommand(random_string(ITEM_ID_LEN), title)
     set_tag = commands.SetTagCommand(set_title.item_id, tag)
     return state, map(str, (set_title, set_tag)), ''
-
-
-def _set_status(state, status, num):
-    item = items.find(state['items'], num or state['selected'])
-    if not item:
-        return state, None, 'no such item'
-    else:
-        set_tag = commands.SetTagCommand(item['id'], items.TAG_PREFIX + status)
-        return state, [str(set_tag)], None
 
 
 @register
@@ -128,10 +96,41 @@ def delete(state, args):
 
 
 @register
-def clear(state, _):
-    """Clear screen."""
-    os.system('clear')
-    return state, None, None
+@alias('ls', 'list')
+def all(state, _):
+    """Show all items."""
+    return list_items(state, items.iter_all(state['items']))
+
+
+@register
+@alias('bl')
+def backlog(state, _):
+    """Show items in the back log (in-progress and todo)."""
+    return list_items(state, items.iter_backlog(state['items']))
+
+
+@register
+@alias('su')
+def standup(state, _):
+    """Show items for stand up (done, in-progress, and todo)."""
+    return list_items(state, items.iter_standup(state['items']))
+
+
+@register
+@alias('s')
+def status(state, _):
+    """Show the currently selected item."""
+    item = items.find(state['items'], state['selected'])
+    return state, None, 'Currently on ' + items.render(item)
+
+
+def _set_status(state, status, num):
+    item = items.find(state['items'], num or state['selected'])
+    if not item:
+        return state, None, 'no such item'
+    else:
+        set_tag = commands.SetTagCommand(item['id'], items.TAG_PREFIX + status)
+        return state, [str(set_tag)], None
 
 
 @register
@@ -188,4 +187,20 @@ def order(state, _):
 
 
 def unknown_command(state, _):
-    return state, None, 'Unknown command'
+    return state, None, 'Unknown command, use "help" for help'
+
+
+@register
+def clear(state, _):
+    """Clear screen."""
+    os.system('clear')
+    return state, None, None
+
+
+@register
+@alias('?')
+def help(state, _):
+    """Display help."""
+    out = '\n'.join('  {:10} {}'.format(name, func.__doc__)
+                    for name, func in dispatch.commands.iteritems())
+    return state, None, out
