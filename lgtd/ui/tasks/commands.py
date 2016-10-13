@@ -1,9 +1,10 @@
 import os
+import re
 
 from . import items
 from ...lib import commands
 from ...lib.constants import ITEM_ID_LEN
-from ...lib.util import random_string
+from ...lib.util import diff_order, random_string
 from .parser import ParseError, option, parse_args, positional, remainder
 
 
@@ -151,6 +152,39 @@ def edit(state, args):
         return state, [str(set_title)], None
     else:
         return state, None, 'Rejecting edit: title is empty'
+
+
+@register
+def order(state, _):
+    """Re-order back log in an external editor."""
+    path = os.path.join('/tmp', 'tasks.{}.edit'.format(os.getpid()))
+    backlog = list(items.iter_backlog(state['items']))
+    old_order = [item['n'] for item in backlog]
+    open(path, 'w').write(items.render_list(backlog, lambda _, text: text))
+    os.system('editor {}'.format(path))
+
+    new_order = []
+    pattern = re.compile(r'^ *#(?P<num>\d+) ')
+    with open(path) as f:
+        for line in f:
+            match = pattern.match(line)
+            if match:
+                new_order.append(int(match.group('num')))
+
+    os.remove(path)
+
+    try:
+        num_diffs = diff_order(old_order, new_order)
+        if num_diffs:
+            diffs = [
+                [num and items.find(state['items'], num)['id'] for num in diff]
+                for diff in num_diffs
+            ]
+            return state, [str(commands.OrderItemsCommand(*diffs))], None
+        else:
+            return state, None, None
+    except ValueError:
+        return state, None, 'Reorder failed: set of items has changed'
 
 
 def unknown_command(state, _):
