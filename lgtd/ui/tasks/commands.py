@@ -40,7 +40,7 @@ def register(f):
 
 
 def list_items(state, items_):
-    return state, None, '\n'.join(items.render(item) for item in items_)
+    return state, None, items.render_list(items_)
 
 
 @register

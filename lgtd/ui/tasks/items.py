@@ -108,3 +108,7 @@ def render(item, colorizer=shell_color):
         ('[{}]'.format(item['dt'], ) if item['dt'] is not None else ()) +
         (colorizer('white', item['title']), )
     )
+
+
+def render_list(items, colorizer=shell_color):
+    return '\n'.join(render(item, colorizer) for item in items)
