@@ -8,3 +8,9 @@ check:
 
 test:
 	py.test lgtd
+
+build:
+	docker build -t lgtd .
+
+up:
+	docker run -p 9002:9002 lgtd
