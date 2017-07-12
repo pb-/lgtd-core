@@ -1,9 +1,6 @@
 FROM python:2
 
 RUN pip install git+git://github.com/pb-/lgtd-core
-RUN mkdir -p /lgtd/data
-
-COPY server.crt server.key /lgtd/
 
 EXPOSE 9002
 

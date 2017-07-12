@@ -12,5 +12,5 @@ test:
 build:
 	docker build -t lgtd .
 
-up:
-	docker run -p 9002:9002 lgtd
+run:
+	docker run -d --restart always -v /var/lib/lgtd:/lgtd -p 9002:9002 lgtd
