@@ -133,22 +133,29 @@ def make_app(args):
     ])
 
 
-def run():
-    parser = ArgumentParser(description='lgtd suite sync daemon')
-    parser.add_argument('data_dir', help='path to data directory')
-    parser.add_argument('certificate', help='path to certificate file')
-    parser.add_argument('key', help='path to key file')
-    args = parser.parse_args()
-
-    if not os.path.isdir(args.data_dir):
-        raise ValueError('"{}" is not a directory'.format(args.data_dir))
-
+def setup_syslog():
     logger = getLogger('tornado.access')
     logger.setLevel(INFO)
     handler = SysLogHandler('/dev/log')
     handler.setFormatter(
         LogFormatter(color=False, fmt='{} %(message)s'.format(__name__)))
     logger.addHandler(handler)
+
+
+def run():
+    parser = ArgumentParser(description='lgtd suite sync daemon')
+    parser.add_argument('data_dir', help='path to data directory')
+    parser.add_argument('certificate', help='path to certificate file')
+    parser.add_argument('key', help='path to key file')
+    parser.add_argument(
+        '--no-syslog', '-S', action='store_true', help='no syslog logging')
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.data_dir):
+        raise ValueError('"{}" is not a directory'.format(args.data_dir))
+
+    if not args.no_syslog:
+        setup_syslog()
 
     server = httpserver.HTTPServer(make_app(args), ssl_options={
         'certfile': args.certificate,
