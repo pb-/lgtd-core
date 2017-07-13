@@ -10,7 +10,7 @@ test:
 	py.test lgtd
 
 build:
-	docker build -t lgtd .
+	docker-compose build
 
-run:
-	docker run -d --restart always -v /var/lib/lgtd:/lgtd -p 9002:9002 lgtd
+up:
+	docker-compose up
