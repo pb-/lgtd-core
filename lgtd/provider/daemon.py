@@ -2,6 +2,7 @@ import hmac
 import logging
 import logging.handlers
 import os
+import sys
 from argparse import ArgumentParser
 from collections import OrderedDict, defaultdict
 from datetime import date, datetime, timedelta
@@ -9,6 +10,7 @@ from getpass import getpass
 from json import dumps, loads
 
 import pyinotify
+from cryptography.exceptions import InvalidTag
 from tornado import ioloop, web
 from tornado.websocket import WebSocketHandler
 
@@ -21,7 +23,10 @@ from ..lib.util import (compare_digest, daemonize, ensure_data_dir,
                         get_lock_file, random_string)
 
 logger = logging.getLogger(__name__)
-STATUS_OK = '\x00'
+
+
+class PasswordMismatch(Exception):
+    pass
 
 
 class StateManager(object):
@@ -215,7 +220,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_daemon(args, config, key, pipe_write):
+def setup_server(args, config, key):
     clients = []
     state_manager = StateManager(
         config['app_id'],
@@ -230,7 +235,8 @@ def run_daemon(args, config, key, pipe_write):
     notifier.state_manager = state_manager
     wm.add_watch(get_lock_file(), pyinotify.IN_CLOSE_WRITE)
 
-    state_manager.notify()  # make sure initial state is prepared
+    # make sure initial state is prepared
+    fresh = not state_manager.notify()
     auth_bucket = LeakyBucket(timedelta(seconds=3), 3)
 
     app = web.Application([
@@ -241,15 +247,10 @@ def run_daemon(args, config, key, pipe_write):
             'state_manager': state_manager}),
     ])
     app.listen(args.port, address='127.0.0.1')
-    logger.info('listening')
-
-    if pipe_write:
-        # notify parent proc that we are listening now
-        os.write(pipe_write, STATUS_OK)
-        os.close(pipe_write)
 
     schedule_midnight(ioloop.IOLoop.current(), clients)
-    ioloop.IOLoop.current().start()
+
+    return fresh
 
 
 def get_key(config):
@@ -259,27 +260,38 @@ def get_key(config):
         return hash_password(getpass())
 
 
-def run():
-    args = parse_args()
-    config = get_local_config()
-    key = get_key(config)
+def start(args, config, key):
+    if not args.daemon:
+        logging.basicConfig(level=logging.DEBUG)
+
+    if setup_server(args, config, key):
+        if get_key(config) != key:
+            raise PasswordMismatch
 
     if args.daemon:
+        pid = os.fork()
+        if pid:
+            return 0
+
+        daemonize()
         logger.setLevel(logging.INFO)
         handler = logging.handlers.SysLogHandler('/dev/log')
         handler.setFormatter(logging.Formatter('%(name)s %(message)s'))
         logger.addHandler(handler)
 
-        pipe_read, pipe_write = os.pipe()
-        pid = os.fork()
-        if pid:
-            os.close(pipe_write)
-            status = os.read(pipe_read, 1)  # wait until we are listening
-            return 0 if status == STATUS_OK else 1
-        else:
-            os.close(pipe_read)
-            daemonize()
-    else:
-        logging.basicConfig(level=logging.DEBUG)
+    ioloop.IOLoop.current().start()
 
-    run_daemon(args, config, key, pipe_write if args.daemon else None)
+
+def run():
+    args = parse_args()
+    config = get_local_config()
+    key = get_key(config)
+
+    try:
+        return start(args, config, key)
+    except InvalidTag:
+        sys.stderr.write('invalid password, exiting\n')
+    except PasswordMismatch:
+        sys.stderr.write('passwords do not match, exiting\n')
+
+    return 1
