@@ -9,10 +9,10 @@ mkdir -p $DIR
 
 cat <<EOF
 repo created; set up ~/.lgtd/sync.conf.json on the client
-as follows (don't forget to change the host!):
+as follows:
 
 {
-  "host": "example.com",
+  "host": "$1",
   "port": 9002,
   "sync_auth": "${REPO}"
 }

@@ -24,23 +24,36 @@ This repository contains ``lgtd-core``, the core components of ``lgtd-suite``. T
 
 Installation
 ------------
-You can install ``lgtd-core`` in two variants: one for the synchronization server only and one for the full package which includes the client-data provider and the text-mode interface.
-(The synchronization-only variant is much lighter on requirements because it will not need any crypto.)
+Note that setting up the synchronization server is completely optional and can be done later as needed.
 
-To install everything, use::
+Client
+======
+Install through pip::
 
     pip install git+git://github.com/pb-/lgtd-core#egg=lgtd-core[client]
 
-and for the synchronization-only variant::
+Run with::
 
-    pip install git+git://github.com/pb-/lgtd-core
+    lgtd
+
+On startup, the client will ask for the encryption passphrase. If you start the client for the first time, it will ask twice to confirm.
+
+Server (optional)
+=================
+The easiest way to run the server is through Docker Compose and use the interactive setup script::
+
+    git clone https://github.com/pb-/lgtd-core.git
+    sudo lgtd-core/scripts/setup-server.sh
+
+Follow the instructions of the script.
+
 
 Architecture
 ------------
 
 A note on security
 ------------------
-``lgtd-suite`` uses authenticated encryption (256-bit AES-GCM in counter mode) to store and transmit user data.
+``lgtd-suite`` uses authenticated encryption (256-bit AES-GCM) to store and transmit user data.
 While this is fairly strong crypto, I urge you not to trust any cryptographic implementation until you gathered sufficient confidence in it, whatever that means to you.
 You may want to read the source, ask a friend, perform a professional audit on it, etc.
 I will not take any responsibility for any security issues you may encounter when using this software.
