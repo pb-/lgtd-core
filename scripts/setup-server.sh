@@ -1,4 +1,14 @@
 #!/bin/bash
+
+for REQ in make openssl base64 docker-compose
+do
+    if ! which $REQ > /dev/null
+    then
+        echo "$REQ is required to run this script"
+        exit 1
+    fi
+done
+
 set -e
 
 pushd `dirname $0` > /dev/null
