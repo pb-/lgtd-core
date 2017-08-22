@@ -22,6 +22,7 @@ This repository contains ``lgtd-core``, the core components of ``lgtd-suite``. T
 .. image:: doc/images/ui-terminal.png
 .. image:: doc/images/ui-android.png
 
+
 Installation
 ------------
 Note that setting up the synchronization server is completely optional and can be done later as needed.
@@ -47,9 +48,6 @@ The easiest way to run the server is through Docker Compose and use the interact
 
 Follow the instructions of the script.
 
-
-Architecture
-------------
 
 A note on security
 ------------------
