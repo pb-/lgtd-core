@@ -2,14 +2,17 @@
 
 cd "$(dirname "$(readlink -en "$0")")"
 
-pgrep -x lgtd_sync -u $UID > /dev/null
-if [ $? -ne 0 ]
+if [ -f "$HOME/.lgtd/sync.conf.json" ] && [ -f "$HOME/.lgtd/server.crt" ]
 then
-	./lgtd_sync --daemon
-	if [ $? -ne 0 ]
-	then
-		echo "warning: could not start lgtd_sync"
-	fi
+    pgrep -x lgtd_sync -u $UID > /dev/null
+    if [ $? -ne 0 ]
+    then
+        ./lgtd_sync --daemon
+        if [ $? -ne 0 ]
+        then
+            echo "warning: could not start lgtd_sync"
+        fi
+    fi
 fi
 
 pgrep -x lgtd_d -u $UID > /dev/null

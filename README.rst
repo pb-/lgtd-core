@@ -30,7 +30,7 @@ Client
 ======
 Install through pip::
 
-    pip install git+git://github.com/pb-/lgtd-core#egg=lgtd-core[client]
+    pip install --user git+git://github.com/pb-/lgtd-core#egg=lgtd-core[client]
 
 Run with::
 
