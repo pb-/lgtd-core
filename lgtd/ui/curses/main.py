@@ -126,7 +126,7 @@ def render(scr, context):
     (y, x) = scr.getmaxyx()
     col = curses.color_pair(1)
     scr.addstr(0, 0, ' ' * x, col)
-    scr.addstr(0, 2, 'GTD', col)
+    scr.addstr(0, 2, 'GTD - type ? for help', col)
 
     height = content_height(scr)
     if height < 1:
