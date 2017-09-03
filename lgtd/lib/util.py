@@ -121,7 +121,7 @@ def daemonize():
 
 
 def parse_natural_date(s):
-    months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun'
+    months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
               'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
     t = re.compile(
         r'(?P<relative>in (?P<magnitude>\d+)(?P<unit>[dwmy])|'

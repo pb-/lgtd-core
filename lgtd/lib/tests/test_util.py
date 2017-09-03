@@ -83,9 +83,8 @@ class UtilTest(unittest.TestCase):
 
         self.assertEqual(parse_natural_date('in 2d'), date(2017, 9, 5))
         self.assertEqual(parse_natural_date('in 1m'), date(2017, 10, 3))
-        # self.assertEqual(parse_natural_date('in 2m'), date(2017, 11, 3))
 
         self.assertEqual(parse_natural_date('on wed'), date(2017, 9, 6))
         self.assertEqual(parse_natural_date('on sun'), date(2017, 9, 10))
 
-        # self.assertEqual(parse_natural_date('on oct 3'), date(2017, 10, 3))
+        self.assertEqual(parse_natural_date('on oct 3'), date(2017, 10, 3))
