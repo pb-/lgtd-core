@@ -1,5 +1,6 @@
 cryptography==1.5.2
 pyinotify==0.9.6
+python-dateutil==2.6.1
 requests==2.11.1
 tornado==4.4.2
 websocket-client==0.37.0

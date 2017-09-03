@@ -8,6 +8,8 @@ from datetime import date, timedelta
 from difflib import SequenceMatcher
 from stat import S_IRUSR, S_IWUSR
 
+from dateutil.relativedelta import relativedelta
+
 from .constants import APP_ID_LEN, LOCAL_AUTH_LEN
 
 
@@ -125,7 +127,7 @@ def parse_natural_date(s):
               'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
     t = re.compile(
         r'(?P<relative>in (?P<magnitude>\d+)(?P<unit>[dwmy])|'
-        r'on (?P<weekday>mon|tue|wed|thu|fri|sat|sun|'
+        r'on ((?P<weekday>mon|tue|wed|thu|fri|sat|sun)|'
         r'(?P<month>{}) (?P<day>\d+)))'.format('|'.join(months)))
     m = t.match(s)
     if not m:
@@ -138,20 +140,22 @@ def parse_natural_date(s):
         amt = int(m.group('magnitude'))
         u = m.group('unit')
         if u == 'w':
-            amt *= 7
+            tt += timedelta(weeks=amt)
         elif u == 'm':
-            amt *= 30
+            tt += relativedelta(months=amt)
         elif u == 'y':
-            amt *= 365
-
-        tt += timedelta(days=amt)
+            tt += relativedelta(years=amt)
+        else:
+            tt += timedelta(days=amt)
     elif m.group('month') and m.group('day'):
-        tt = tt.replace(
-            month=months.index(m.group('month'))+1,
-            day=int(m.group('day')))
+        try:
+            tt = tt.replace(
+                month=months.index(m.group('month'))+1,
+                day=int(m.group('day')))
+        except ValueError as e:
+            raise ParseError(e)
         if tt <= date.today():
-            y = tt.year + 1
-            tt = tt.replace(year=y)
+            tt += relativedelta(years=1)
     else:
         tt += timedelta(days=1)
         # this will livelock with the wrong locale.
