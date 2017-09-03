@@ -123,18 +123,20 @@ def daemonize():
 def parse_natural_date(s):
     months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun'
               'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-    t = re.compile('(in (\\d+)([dwmy])|on (mon|tue|wed|thu|fri|sat|sun|({}) '
-                   '(\\d+)))'.format('|'.join(months)))
+    t = re.compile(
+        r'(?P<relative>in (?P<magnitude>\d+)(?P<unit>[dwmy])|'
+        r'on (?P<weekday>mon|tue|wed|thu|fri|sat|sun|'
+        r'(?P<month>{}) (?P<day>\d+)))'.format('|'.join(months)))
     m = t.match(s)
     if not m:
         raise ParseError("I do not understand that date format")
 
     tt = date.today()
 
-    if m.group(1) and m.group(2):
+    if m.group('relative') and m.group('magnitude'):
         # in ...
-        amt = int(m.group(2))
-        u = m.group(3)
+        amt = int(m.group('magnitude'))
+        u = m.group('unit')
         if u == 'w':
             amt *= 7
         elif u == 'm':
@@ -143,15 +145,17 @@ def parse_natural_date(s):
             amt *= 365
 
         tt += timedelta(days=amt)
-    elif m.group(5) and m.group(6):
-        tt = tt.replace(month=months.index(m.group(5))+1, day=int(m.group(6)))
+    elif m.group('month') and m.group('day'):
+        tt = tt.replace(
+            month=months.index(m.group('month'))+1,
+            day=int(m.group('day')))
         if tt <= date.today():
             y = tt.year + 1
             tt = tt.replace(year=y)
     else:
         tt += timedelta(days=1)
         # this will livelock with the wrong locale.
-        while tt.strftime('%a').lower() != m.group(4):
+        while tt.strftime('%a').lower() != m.group('weekday'):
             tt += timedelta(days=1)
 
     return tt

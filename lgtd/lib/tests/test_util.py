@@ -1,9 +1,10 @@
 import unittest
+from datetime import date
 from itertools import permutations
 
 from mock import patch
 
-from ..util import compare_digest, diff_order, patch_order
+from ..util import compare_digest, diff_order, parse_natural_date, patch_order
 
 
 class UtilTest(unittest.TestCase):
@@ -75,3 +76,16 @@ class UtilTest(unittest.TestCase):
         a = list('abcdef')
         for b in permutations(a):
             self.assertEqual(patch_order(a, diff_order(a, b)), list(b))
+
+    @patch('lgtd.lib.util.date')
+    def test_date_parsing(self, date_):
+        setattr(date_, 'today', lambda: date(2017, 9, 3))  # Sunday
+
+        self.assertEqual(parse_natural_date('in 2d'), date(2017, 9, 5))
+        self.assertEqual(parse_natural_date('in 1m'), date(2017, 10, 3))
+        # self.assertEqual(parse_natural_date('in 2m'), date(2017, 11, 3))
+
+        self.assertEqual(parse_natural_date('on wed'), date(2017, 9, 6))
+        self.assertEqual(parse_natural_date('on sun'), date(2017, 9, 10))
+
+        # self.assertEqual(parse_natural_date('on oct 3'), date(2017, 10, 3))
