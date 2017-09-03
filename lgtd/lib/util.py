@@ -4,8 +4,10 @@ import json
 import os
 import random
 import re
+from contextlib import contextmanager
 from datetime import date, timedelta
 from difflib import SequenceMatcher
+from locale import LC_ALL, setlocale
 from stat import S_IRUSR, S_IWUSR
 
 from dateutil.relativedelta import relativedelta
@@ -122,6 +124,15 @@ def daemonize():
     os.dup2(null.fileno(), 2)  # stderr
 
 
+@contextmanager
+def locale(l):
+    old = setlocale(LC_ALL)
+    try:
+        yield setlocale(LC_ALL, l)
+    finally:
+        setlocale(LC_ALL, old)
+
+
 def parse_natural_date(s):
     months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
               'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
@@ -158,9 +169,9 @@ def parse_natural_date(s):
             tt += relativedelta(years=1)
     else:
         tt += timedelta(days=1)
-        # this will livelock with the wrong locale.
-        while tt.strftime('%a').lower() != m.group('weekday'):
-            tt += timedelta(days=1)
+        with locale('C'):
+            while tt.strftime('%a').lower() != m.group('weekday'):
+                tt += timedelta(days=1)
 
     return tt
 
