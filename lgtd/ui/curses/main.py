@@ -81,6 +81,17 @@ def content_height(scr):
     return ymax - 4
 
 
+def trim(s, max_len, indicator='...'):
+    if max_len < len(indicator):
+        raise ValueError('max_len must be at least as long as indicator')
+
+    l = len(s)
+    if l <= max_len:
+        return s
+
+    return s[:max_len-len(indicator)] + indicator
+
+
 def render_tags(scr, context):
     height = content_height(scr)
     for i, tag in enumerate(context.model['tags']):
@@ -99,6 +110,7 @@ def render_tags(scr, context):
 
 def render_items(scr, context):
     height = content_height(scr)
+    _, width = scr.getmaxyx()
     for i, item in enumerate(context.model['items']):
         if i < context.vars['scroll_offset_items']:
             continue
@@ -106,7 +118,7 @@ def render_items(scr, context):
         if not ii < height:
             break
 
-        scr.addstr(ii+2, 20, item['title'].encode('utf-8'))
+        scr.addstr(ii+2, 20, trim(item['title'], width - 20).encode('utf-8'))
         if 'scheduled' in item:
             scr.addstr('  [{}]'.format(
                 item['scheduled']), curses.color_pair(2))
