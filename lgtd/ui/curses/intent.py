@@ -54,6 +54,24 @@ class NextItem(Intent):
             context.vars['active_item'] + 1)
 
 
+class LastItem(Intent):
+    help_text = 'Move to last item'
+
+    @staticmethod
+    def execute(context, arg):
+        n = len(context.model['items'])
+        if n > 0:
+            context.vars['active_item'] = n - 1
+
+
+class FirstItem(Intent):
+    help_text = 'Move to first item'
+
+    @staticmethod
+    def execute(context, arg):
+        context.vars['active_item'] = 0
+
+
 class AddItem(Intent):
     help_text = 'Add new item'
 
