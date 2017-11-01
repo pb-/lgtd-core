@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from curses import KEY_BACKSPACE
 
 from . import intent
@@ -138,24 +139,24 @@ class Process(Input):
         adapter.push_commands([cmd])
 
 
-keymap = {
-    'l': (intent.PreviousTag, None),
-    'K': (intent.PreviousTag, None),
-    'h': (intent.NextTag, None),
-    'J': (intent.NextTag, None),
-    'g': (intent.FirstItem, None),
-    'k': (intent.PreviousItem, None),
-    'j': (intent.NextItem, None),
-    'G': (intent.LastItem, None),
-    'a': (intent.AddItem, AddStuff),
-    KEY_ENTER: (intent.AddItem, AddStuff),
-    'p': (intent.Process, Process),
-    'd': (intent.DeleteItem, None),
-    'x': (intent.DeleteItem, None),
-    'i': (intent.MoveToInbox, None),
-    'D': (intent.DeleteTag, None),
-    '?': (intent.Help, Help),
-}
+keymap = OrderedDict((
+    ('l', (intent.PreviousTag, None)),
+    ('K', (intent.PreviousTag, None)),
+    ('h', (intent.NextTag, None)),
+    ('J', (intent.NextTag, None)),
+    ('g', (intent.FirstItem, None)),
+    ('k', (intent.PreviousItem, None)),
+    ('j', (intent.NextItem, None)),
+    ('G', (intent.LastItem, None)),
+    ('a', (intent.AddItem, AddStuff)),
+    (KEY_ENTER, (intent.AddItem, AddStuff)),
+    ('p', (intent.Process, Process)),
+    ('d', (intent.DeleteItem, None)),
+    ('x', (intent.DeleteItem, None)),
+    ('i', (intent.MoveToInbox, None)),
+    ('D', (intent.DeleteTag, None)),
+    ('?', (intent.Help, Help)),
+))
 
-keymap.update({
-    chr(ord('0') + num): (intent.SelectTag, num) for num in xrange(0, 10)})
+keymap.update(
+    (chr(ord('0') + num), (intent.SelectTag, num)) for num in xrange(0, 10))

@@ -115,10 +115,12 @@ def render_items(scr, context):
 
 
 def render_help(scr, context):
-    for i, key in enumerate(sorted(keymap.keys())):
+    i = 0
+    for key in keymap.keys():
         if isinstance(key, basestring):
             scr.addstr(i + 2, 4, key.encode('utf-8'))
             scr.addstr(i + 2, 10, keymap[key][0].help_text)
+            i += 1
 
 
 def render(scr, context):
