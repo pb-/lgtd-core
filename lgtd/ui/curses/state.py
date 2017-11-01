@@ -6,14 +6,6 @@ from ...lib.constants import ITEM_ID_LEN, KEY_ENTER, KEY_ESC
 from ...lib.util import ParseError, parse_natural_date, random_string
 
 
-def update_scroll(ui_state, key_offset, key_active):
-    if not (ui_state[key_offset] <=
-            ui_state[key_active] <
-            ui_state[key_offset] + ui_state['content_height']):
-        page, _ = divmod(ui_state[key_active], ui_state['content_height'])
-        ui_state[key_offset] = page * ui_state['content_height']
-
-
 class Context(object):
     def __init__(self, model, adapter):
         self.set_state(Ready())
