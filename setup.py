@@ -15,7 +15,7 @@ setup(
     ],
     extras_require={
         'client': [
-            'cryptography >=1.2.1,<2',
+            'cryptography >=1.2.1,<3',
             'pyinotify >=0.9.6,<1',
             'requests >=2.9.1,<3',
             'websocket-client >=0.35.0,<1',
