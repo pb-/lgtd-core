@@ -11,7 +11,7 @@ setup(
     packages=find_packages('.'),
     license='GPLv3',
     install_requires=[
-        'tornado >=4.3',
+        'tornado >=4.3,<5',
     ],
     extras_require={
         'client': [
