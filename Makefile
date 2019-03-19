@@ -12,14 +12,11 @@ test:
 	py.test lgtd
 .PHONY: test
 
-build:
-	docker-compose build
-.PHONY: build
+image:
+	docker build -t lgtd .
+.PHONY: image
 
-up:
-	docker-compose up
-.PHONY: up
-
-upd:
-	docker-compose up -d
-.PHONY: upd
+publish:
+	docker tag lgtd pbgh/lgtd
+	docker push pbgh/lgtd
+.PHONY: publish

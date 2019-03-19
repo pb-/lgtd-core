@@ -145,8 +145,6 @@ def setup_syslog():
 def run():
     parser = ArgumentParser(description='lgtd suite sync daemon')
     parser.add_argument('data_dir', help='path to data directory')
-    parser.add_argument('certificate', help='path to certificate file')
-    parser.add_argument('key', help='path to key file')
     parser.add_argument(
         '--no-syslog', '-S', action='store_true', help='no syslog logging')
     args = parser.parse_args()
@@ -157,9 +155,6 @@ def run():
     if not args.no_syslog:
         setup_syslog()
 
-    server = httpserver.HTTPServer(make_app(args), ssl_options={
-        'certfile': args.certificate,
-        'keyfile': args.key,
-    })
+    server = httpserver.HTTPServer(make_app(args))
     server.listen(9002)
     ioloop.IOLoop.current().start()

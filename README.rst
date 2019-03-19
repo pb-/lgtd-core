@@ -39,16 +39,6 @@ Run with::
 
 On startup, the client will ask for the encryption passphrase. If you start the client for the first time, it will ask twice to confirm.
 
-Server (optional)
-=================
-The easiest way to run the server is through Docker Compose and use the interactive setup script::
-
-    git clone https://github.com/pb-/lgtd-core.git
-    sudo lgtd-core/scripts/setup-server.sh
-
-Follow the instructions of the script.
-
-
 A note on security
 ------------------
 ``lgtd-suite`` uses authenticated encryption (256-bit AES-GCM) to store and transmit user data.
