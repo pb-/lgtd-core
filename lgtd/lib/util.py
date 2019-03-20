@@ -27,10 +27,6 @@ def get_lock_file():
     return os.path.join(get_lgtd_dir(), 'lock')
 
 
-def get_certificate_file():
-    return os.path.join(get_lgtd_dir(), 'server.crt')
-
-
 def get_data_dir():
     return os.path.join(get_lgtd_dir(), 'data')
 

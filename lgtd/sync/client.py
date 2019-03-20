@@ -10,8 +10,8 @@ import pyinotify
 import requests
 
 from ..lib.db.syncable import Database
-from ..lib.util import (daemonize, ensure_lock_file, get_certificate_file,
-                        get_data_dir, get_lock_file, get_sync_config)
+from ..lib.util import (daemonize, ensure_lock_file, get_data_dir,
+                        get_lock_file, get_sync_config)
 
 SYNC_PERIODIC_INTERVAL = timedelta(minutes=15)
 SYNC_DELAY = timedelta(seconds=10)
@@ -55,8 +55,7 @@ class ProcessEvent(pyinotify.ProcessEvent):
 
 def make_request(url, data):
     response = requests.post(
-        url, data=data, timeout=REQUEST_TIMEOUT.total_seconds(),
-        verify=get_certificate_file())
+        url, data=data, timeout=REQUEST_TIMEOUT.total_seconds())
     response.raise_for_status()
     return response
 
@@ -140,9 +139,6 @@ def parse_args():
 
 def run():
     ensure_lock_file()
-    cert = get_certificate_file()
-    if not os.path.isfile(cert):
-        raise ValueError('no certificate at found at {}'.format(cert))
 
     config = get_sync_config()
     if not config['host'] or not config['sync_auth']:
